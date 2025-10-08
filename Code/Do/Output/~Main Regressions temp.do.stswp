@@ -1,0 +1,788 @@
+*Setting path and clearing*
+local master=$master
+if `master'==1{
+	clear all
+}
+else {
+clear all
+global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
+global rawdata "$path/data/raw"
+global intermediatedata "$path/data/intermediate"
+global cleandata "$path/data/clean"
+global interout "$path/intermediateoutput"
+global out "$path/output"
+}
+
+*Controls*
+global controls blackshare hispanicshare asianshare femaleshare
+global dcontrols d.blackshare d.hispanicshare d.asianshare d.femaleshare
+
+use "$cleandata/analysisweighted_average_linkage_jsd", clear
+
+xtset clusterage year
+
+
+*FE regression*
+gen lnclustersharetable=lncluster30hoursshare
+label var lnclustersharetable "Ln(Cluster share)"
+
+* Fixed Effects Model
+reghdfe lnclusterwage lnclustersharetable $controls [pweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo fe_model
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2_within)'
+reghdfe lnclusterwage lnclustersharetable $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model
+estadd mat hi = hi : fe_model
+
+
+* Instrumental Variables Fixed Effects Model
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_fe_model
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model
+estadd mat hi = hi : iv_fe_model
+* First Differences Model
+xtset clusterage year
+replace lnclustersharetable=d.lncluster30hoursshare
+reghdfe d.lnclusterwage lnclustersharetable $dcontrols [aweight=weight], absorb(i.year i.cluster176) cluster(cluster30)
+eststo fd_model
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2_within)'
+reghdfe d.lnclusterwage lnclustersharetable $dcontrols i.year  [aweight=weight], absorb(i.cluster176) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fd_model
+estadd mat hi = hi : fd_model
+
+
+* Instrumental Variables First Differences Model
+ivreghdfe d.lnclusterwage (lnclustersharetable=d.lnnationalhourscluster30share) $dcontrols [aweight=weight], absorb(i.year i.cluster176) cluster(cluster30)
+eststo iv_fd_model
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+ivreghdfe d.lnclusterwage (lnclustersharetable=d.lnnationalhourscluster30share) $dcontrols i.year  [aweight=weight], absorb(i.cluster176) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fd_model
+estadd mat hi = hi : iv_fd_model
+
+* Output regression table
+esttab fe_model iv_fe_model fd_model iv_fd_model using "$out/mainregression.rtf", ///
+   replace nocons label ///
+   addnotes("Notes: All regressions estimate equation (7) or a first-differenced analogue. Major-age (five year) combinations, the unit of analysis, are weighted proportionally to the sum of their members. Standard errors clustered at the skill cluster level are in parentheses. 95% wild cluster bootstrap confidence intervals from 5000 replications using Rademacher weights are in square brackets. Controls cover the proportion of asian, hispanic, black, and female workers used to calculate the major-by-age group. Within R-squared values are reported. The instrument is defined as proportion of hours worked by natives from within the same skill cluster if everyone worked the hours typical of their age-major-sex combination in the base period of 2009.") ///
+   keep(lnclustersharetable) ///
+   mtitles("FE" "IV-FE" "FD" "IV-FD") ///
+   cells(b(fmt(3)) se(par fmt(3)) 		/// if you specify (X & Y) it posts these two statistics to the same cell
+		(lo(f(2) par(`"["') keep(lnclustersharetable)) & /// par option gives the left [ bracket but no right one
+		hi(f(2) par("" `"]"') keep(lnclustersharetable)))) /// par puts nothing on the left, but a ] on the right) 
+		incelldelimiter(", ") ///puts comma in between the lo and hi
+   stats(first_stage_f fixed_effects year_effects controls time_trend r2within N, ///
+         labels("F-statistic" "Major-by-age fixed effects" "Year-by-age fixed effects" "Controls" "Time trend" "R-squared" "Observations")  fmt(1 0 0 0 0 3 %8.0fc)) ///
+		 collabels(none) ///
+		 nodepvar
+
+		 
+		 
+		 *Differences by initial wage*
+replace lnclustersharetable=lncluster30hoursshare
+sum stdinitialwage30 [aweight=weight], detail
+local median `r(p50)'
+
+reghdfe lnclusterwage lnclustersharetable $controls if stdinitialwage30>`median' [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo fe_model_above_median
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2_within)'
+reghdfe lnclusterwage lnclustersharetable $controls i.year c.year#i.cluster176 if stdinitialwage30>`median' [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_above_median
+estadd mat hi = hi : fe_model_above_median
+
+
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share) $controls if stdinitialwage30>`median' [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_fe_model_above_median
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share) $controls i.year c.year#i.cluster176 if stdinitialwage30>`median' [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones0 
+estadd mat lo = lo : iv_fe_model_above_median
+estadd mat hi = hi : iv_fe_model_above_median
+
+reghdfe lnclusterwage lnclustersharetable $controls if stdinitialwage30<=`median' [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo fe_model_below_median
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2_within)'
+reghdfe lnclusterwage lnclustersharetable $controls i.year c.year#i.cluster176 if stdinitialwage30<=`median' [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_below_median
+estadd mat hi = hi : fe_model_below_median
+
+
+
+ivreghdfe lnclusterwage (lnclustersharetable =lnnationalhourscluster30share) $controls if stdinitialwage30<=`median'  [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_fe_model_below_median
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+ivreghdfe lnclusterwage (lnclustersharetable =lnnationalhourscluster30share) $controls i.year c.year#i.cluster176 if stdinitialwage30<=`median' [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model_below_median
+estadd mat hi = hi : iv_fe_model_below_median
+
+
+esttab fe_model_below_median iv_fe_model_below_median fe_model_above_median iv_fe_model_above_median using "$out/heterogeneityregressiontable.rtf", ///
+   replace nocons label ///
+   addnotes("Notes: All regressions estimate equation (7). Major-age (five year) combinations, the unit of analysis, are weighted proportionally to the sum of their members. Standard errors clustered at the skill cluster level are in parentheses. 95% wild cluster bootstrap confidence intervals from 5000 replications using Rademacher weights are in square brackets. Controls cover the proportion of asian, hispanic, black, and female workers used to calculate the major-by-age group. Below median average wage means that the average wage of graduates from that skill cluster was below the median graduate's wage in 2009. Within R-squared values are reported. The instrument is defined as proportion of hours worked by natives from within the same skill cluster if everyone worked the hours typical of their age-major-sex combination in the base period of 2009.") ///
+   keep(lnclustersharetable) ///
+   mgroups("Below Median" "Above Median", pattern(1 0 1 0)) ///
+   mtitles("FE" "IV-FE" "FE" "IV-FE") ///
+      cells(b(fmt(3)) se(par fmt(3)) 		/// if you specify (X & Y) it posts these two statistics to the same cell
+		(lo(f(2) par(`"["') keep(lnclustersharetable)) & /// par option gives the left [ bracket but no right one
+		hi(f(2) par("" `"]"') keep(lnclustersharetable)))) /// par puts nothing on the left, but a ] on the right) 
+		incelldelimiter(", ") /// puts comma in between the lo and hi
+   stats(first_stage_f fixed_effects year_effects controls time_trend r2within N, ///
+         labels("F-statistic" "Major-by-age fixed effects" "Year-by-age fixed effects" ///
+"Controls" "Time trend"  "R-squared" "Observations")  fmt(1 0 0 0 0 3 %8.0fc)) ///
+		 collabels(none) ///
+		 nodepvar
+		 
+*Measurement error*
+replace lnclustersharetable=lncluster30hoursshare1
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare2) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo fe_model_errors1
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "Internal"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare2) $controls i.year c.year#i.cluster176 [aweight=weight], absorb( i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_errors1
+estadd mat hi = hi : fe_model_errors1
+
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share2) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_fe_model_errors1
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "External"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share2) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model_errors1
+estadd mat hi = hi : iv_fe_model_errors1
+
+replace lnclustersharetable=lncluster30hoursshare2
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare1 ) $controls [aweight=weight], absorb(i.year i.cluster176#i.agegroup c.year#i.cluster176) cluster(cluster30)
+eststo fe_model_errors2
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "Internal"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare1) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_errors2
+estadd mat hi = hi : fe_model_errors2
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share1 ) $controls [aweight=weight], absorb(i.year i.cluster176#i.agegroup c.year#i.cluster176) cluster(cluster30)
+eststo iv_fe_model_errors2
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "External"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share1) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30) 
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model_errors2
+estadd mat hi = hi : iv_fe_model_errors2
+
+esttab fe_model_errors1 iv_fe_model_errors1 fe_model_errors2 iv_fe_model_errors2 using "$out/measurementerrortable.rtf", ///
+   replace nocons label ///
+   addnotes("Notes: All regressions estimate equation (7). Major-age (five year) combinations, the unit of analysis, are weighted proportionally to the sum of their members. Standard errors clustered at the skill cluster level are in parentheses. 95% wild cluster bootstrap confidence intervals from 5000 replications using Rademacher weights are in square brackets. Controls cover the proportion of asian, hispanic, black, and female workers used to calculate the major-by-age group. Within R-squared values are reported. The external instrument is defined as proportion of hours worked by natives from within the same skill cluster if everyone worked the hours typical of their age-major-sex combination in the base period of 2009 from the other half of the sample. The internal instrument is the independent variable calculated in the other half of the sample. Either instrument is also interacted with the log of the cluster's size in 2009 to account for the structure of the measurement error. The distinction between Model 1 and Model 2 and is that Model 1 takes the value from half of the sample to be endogenous and the other to be the instrument and Model 2 flips this.") ///
+   keep(lnclustersharetable) ///
+   mgroups("Model 1" "Model 2", pattern(1 0 1 0)) ///
+      cells(b(fmt(3)) se(par fmt(3)) 		/// if you specify (X & Y) it posts these two statistics to the same cell
+		(lo(f(2) par(`"["') keep(lnclustersharetable)) & /// par option gives the left [ bracket but no right one
+		hi(f(2) par("" `"]"') keep(lnclustersharetable)))) /// par puts nothing on the left, but a ] on the right) 
+		incelldelimiter(", ") ///puts comma in between the lo and hi
+   stats(first_stage_f instrument fixed_effects year_effects controls time_trend r2within N, ///
+         labels("F-statistic" "Instrument" "Major-by-age fixed effects" "Year-by-age fixed effects" "Controls" "Time trend" "R-squared" "Observations")  fmt(1 0 0 0 0 0 3 %8.0fc)) ///
+		 collabels(none) ///
+		 nodepvar
+
+*Placebo test?*
+capture: gen lnclustertableminusown=lncluster30hoursshareminusown
+label var lnclustertableminusown "Ln(Other degree cluster share)"
+reghdfe lnclustertableminusown lnclusterhoursshare $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo counterfactual_model_30
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2_within)'
+reghdfe lnclustertableminusown lnclusterhoursshare $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclusterhoursshare, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo =  lnclusterhoursshare  //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi =  lnclusterhoursshare  //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : counterfactual_model_30
+estadd mat hi = hi : counterfactual_model_30
+
+ivreghdfe lnclustertableminusown (lnclusterhoursshare=lnnationalhoursclustershare) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_counterfactual_model_30
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+ivreghdfe lnclustertableminusown (lnclusterhoursshare=lnnationalhoursclustershare) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclusterhoursshare, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo =  lnclusterhoursshare  //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi =  lnclusterhoursshare  //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_counterfactual_model_30
+estadd mat hi = hi : iv_counterfactual_model_30
+
+esttab counterfactual_model_30 iv_counterfactual_model_30 using "$out/placebotest.rtf", ///
+   replace nocons label ///
+   addnotes("Notes: Major-age (five year) combinations, the unit of analysis, are weighted proportionally to the sum of their members. Standard errors clustered at the skill cluster level are in parentheses. 95% wild cluster bootstrap confidence intervals from 5000 replications using Rademacher weights are in square brackets. Controls cover the proportion of asian, hispanic, black, and female workers used to calculate the major-by-age group. Within R-squared values are reported. The instrument is defined as proportion of hours worked by natives from within the same skill cluster, excluding those from the same major, if everyone worked the hours typical of their age-major-sex combination in the base period of 2009.") ///
+   keep(lnclusterhoursshare) ///
+      cells(b(fmt(3)) se(par fmt(3)) 		/// if you specify (X & Y) it posts these two statistics to the same cell
+		(lo(f(2) par(`"["') keep(lnclusterhoursshare)) & /// par option gives the left [ bracket but no right one
+		hi(f(2) par("" `"]"') keep(lnclusterhoursshare)))) /// par puts nothing on the left, but a ] on the right) 
+		incelldelimiter(", ") ///puts comma in between the lo and hi
+   stats(first_stage_f fixed_effects year_effects controls time_trend r2within N, ///
+         labels("F-statistic" "Major-by-age fixed effects" "Year-by-age fixed effects" "Controls" "Time trend" "R-squared" "Observations")  fmt(1 0 0 0 0 3 %8.0fc)) ///
+		 collabels(none) ///
+		 mtitles("FE" "IV-FE") ///
+		 mgroups("Depvar", pattern(1 0)) ///
+		 nodepvar
+
+
+*errors-in-variables with spearman brown*
+
+
+*Output*
+
+
+
+replace lnclustersharetable=lncluster30hoursshare1
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare2 ) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo fe_model_errors1
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "Internal"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare2 ) $controls i.year c.year#i.cluster176 [aweight=weight], absorb( i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_errors1
+estadd mat hi = hi : fe_model_errors1
+
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share2 ) $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30)
+eststo iv_fe_model_errors1
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "External"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share2 ) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model_errors1
+estadd mat hi = hi : iv_fe_model_errors1
+
+replace lnclustersharetable=lncluster30hoursshare2
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare1 ) $controls [aweight=weight], absorb(i.year i.cluster176#i.agegroup c.year#i.cluster176) cluster(cluster30)
+eststo fe_model_errors2
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "Internal"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lncluster30hoursshare1 ) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30)
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : fe_model_errors2
+estadd mat hi = hi : fe_model_errors2
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share1 ) $controls [aweight=weight], absorb(i.year i.cluster176#i.agegroup c.year#i.cluster176) cluster(cluster30)
+eststo iv_fe_model_errors2
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "External"
+estadd scalar r2within=`e(r2)'
+estadd scalar first_stage_f = `e(widstat)'
+
+ivreghdfe lnclusterwage (lnclustersharetable=lnnationalhourscluster30share1 ) $controls i.year c.year#i.cluster176 [aweight=weight], absorb(i.cluster176#i.agegroup) cluster(cluster30) 
+boottest lnclustersharetable, cluster(cluster30) boottype(wild) seed(1234) reps(5000) weight(rademacher) nograph jackknife format(%6.3f)
+mat lo = r(CI)[1,1] //subsets the r(CI) matrx to only have the lower CI
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi = r(CI)[1,2] //upper CI
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : iv_fe_model_errors2
+estadd mat hi = hi : iv_fe_model_errors2
+
+*Spearman-Brown*
+
+*Point estimates and standard errors*
+
+
+
+program define spearman_brown_reg_wild
+preserve
+*First stage*
+gen firstuniform=runiform(0,1) if minrow==row
+ereplace firstuniform=min(firstuniform), by(cluster30)
+gen wildweight=1 if firstuniform>=0.5
+replace wildweight=-1 if firstuniform<0.5
+gen wildx1=x1resid+wildweight*firstresid
+
+reg wildx1 x2resid [aweight=weight]
+
+gen r2=`e(r2)'
+gen rhalf=sqrt(r2)
+gen rfull=(2*rhalf)/(1+rhalf)
+replace xresid=rfull*xresid
+
+*Second stage restricted*
+reg yresid [aweight=weight], cluster(cluster30)
+predict secondresid, resid
+gen wildy=yresid+wildweight*secondresid
+
+
+
+replace lnclustersharetable=xresid
+jackknife , cluster(cluster30) mse: reg wildy lnclustersharetable [pweight=weight], cluster(cluster30)
+
+restore
+
+
+end
+*Bootstapping*
+preserve
+
+reghdfe lncluster30hoursshare1 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict x1resid, resid
+reghdfe lncluster30hoursshare2 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict x2resid, resid
+reg x1resid x2resid [aweight=weight]
+predict firstresid, resid
+gen row=_n
+gegen minrow=min(row), by(cluster30)
+gen r2=`e(r2)'
+gen rhalf=sqrt(r2)
+gen rfull=(2*rhalf)/(1+rhalf)
+reghdfe lnclusterwage $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict yresid, resid
+reghdfe lncluster30hoursshare $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict xresid, resid
+replace lnclustersharetable=rfull*xresid
+
+jackknife , cluster(cluster30) mse: reg yresid lnclustersharetable [pweight=weight], cluster(cluster30)
+
+local se_x=_se[lnclustersharetable]
+
+
+eststo spearman_brown
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "None"
+estadd scalar r2within=`e(r2)'
+
+
+drop r2 rhalf rfull 
+
+
+simulate _b[lnclustersharetable] _se[lnclustersharetable], reps(100) seed(1234) : spearman_brown_reg_wild
+gen t=_sim_1/_sim_2
+centile t, centile(2.5 97.5)
+
+
+mat lo =  `r(c_1)' * `se_x'  
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi =  `r(c_2)' * `se_x'   
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : spearman_brown
+estadd mat hi = hi : spearman_brown
+
+
+restore
+
+*Spearman-Brown IV*
+
+*Point estimates and standard errors*
+
+
+
+program define spearman_brown_reg_wild_iv
+preserve
+*Endogenous variable measurement error*
+gen firstuniform=runiform(0,1) if minrow==row
+ereplace firstuniform=min(firstuniform), by(cluster30)
+gen wildweight=1 if firstuniform>=0.5
+replace wildweight=-1 if firstuniform<0.5
+gen wildx1=x1resid+wildweight*firstresid
+
+corr wildx1 z1resid [aweight=weight], cov
+
+corr wildx1 z2resid [aweight=weight], cov
+
+
+
+gen r2=`e(r2)'
+gen rhalf=sqrt(r2)
+gen rfull=(2*rhalf)/(1+rhalf)
+replace xresid=rfull*xresid
+
+*Instrument measurement error*
+
+gen wildz1=z1resid+wildweight*zmeasurementresid
+
+reg wildz1 z2resid [aweight=weight]
+
+gen r2z=`e(r2)'
+gen rhalfz=sqrt(r2z)
+gen rfullz=(2*rhalf)/(1+rhalf)
+replace zresid=rfullz*zresid
+
+
+*Second stage restricted*
+reg yresid [aweight=weight], cluster(cluster30)
+predict secondresid, resid
+gen wildy=yresid+wildweight*secondresid
+
+
+
+replace lnclustersharetable=xresid
+jackknife , cluster(cluster30) mse: ivreg wildy (lnclustersharetable=zresid) [pweight=weight], cluster(cluster30)
+
+restore
+
+
+end
+*Bootstapping*
+preserve
+
+reghdfe lncluster30hoursshare1 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict x1resid, resid
+reghdfe lncluster30hoursshare2 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict x2resid, resid
+reg x1resid x2resid [aweight=weight]
+predict firstresid, resid
+gen r2=`e(r2)'
+gen rhalf=sqrt(r2)
+gen rfull=(2*rhalf)/(1+rhalf)
+
+reghdfe lnnationalhourscluster30share1 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict z1resid, resid
+reghdfe lnnationalhourscluster30share2 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict z2resid, resid
+reg z1resid z2resid [aweight=weight]
+predict zmeasurementresid, resid
+gen r2z=`e(r2)'
+gen rhalfz=sqrt(r2)
+gen rfullz=(2*rhalf)/(1+rhalf)
+
+
+
+gen row=_n
+gegen minrow=min(row), by(cluster30)
+
+reghdfe lnclusterwage $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict yresid, resid
+reghdfe lncluster30hoursshare $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict xresid, resid
+replace lnclustersharetable=rfull*xresid
+reghdfe lnnationalhourscluster30share $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict zresid, resid
+replace lnnationalhourscluster30share=rfullz*zresid
+
+
+jackknife , cluster(cluster30) mse: ivreg2 yresid (lnclustersharetable=lnnationalhourscluster30share) [pweight=weight], cluster(cluster30)
+
+local se_x=_se[lnclustersharetable]
+
+
+eststo spearman_brown_iv
+estadd local fixed_effects "Yes"
+estadd local year_effects "Yes"
+estadd local controls "Yes"
+estadd local time_trend "Yes"
+estadd local instrument "None"
+estadd scalar r2within=`e(r2)'
+
+
+drop r2* rhalf* rfull*
+
+
+simulate _b[lnclustersharetable] _se[lnclustersharetable], reps(100) seed(1234) : spearman_brown_reg_wild_iv
+gen t=_sim_1/_sim_2
+centile t, centile(2.5 97.5)
+
+
+mat lo =  `r(c_1)' * `se_x'  
+mat coln lo = lnclustersharetable //needs to match the variable we want it to show up underneath
+mat hi =  `r(c_2)' * `se_x'   
+mat coln hi = lnclustersharetable //same as above
+
+mat list lo 
+mat list hi //check we have the correct ones
+
+estadd mat lo = lo : spearman_brown_iv
+estadd mat hi = hi : spearman_brown_iv
+
+
+restore
+
+
+
+*Output*
+esttab fe_model_errors1 iv_fe_model_errors1 fe_model_errors2 iv_fe_model_errors2 spearman_brown spearman_brown_iv using "$out/sbmeasurementerrortable.rtf", ///
+   replace nocons label ///
+   addnotes("Notes: All regressions estimate equation (7). Major-age (five year) combinations, the unit of analysis, are weighted proportionally to the sum of their members. Standard errors clustered at the skill cluster level are in parentheses. 95% wild cluster bootstrap confidence intervals from 5000 replications using Rademacher weights are in square brackets. Controls cover the proportion of asian, hispanic, black, and female workers used to calculate the major-by-age group. Within R-squared values are reported. The external instrument is defined as proportion of hours worked by natives from within the same skill cluster if everyone worked the hours typical of their age-major-sex combination in the base period of 2009 from the other half of the sample. The internal instrument is the independent variable calculated in the other half of the sample. Either instrument is also interacted with the log of the cluster's size in 2009 to account for the structure of the measurement error. The distinction between Model 1 and Model 2 and is that Model 1 takes the value from half of the sample to be endogenous and the other to be the instrument and Model 2 flips this.") ///
+   keep(lnclustersharetable) ///
+    mgroups("Model 1" "Model 2" "Spearman-Brown", pattern(1 0 1 0 1 0)) ///
+      cells(b(fmt(3))		/// if you specify (X & Y) it posts these two statistics to the same cell
+		(lo(f(2) par(`"["') keep(lnclustersharetable)) & /// par option gives the left [ bracket but no right one
+		hi(f(2) par("" `"]"') keep(lnclustersharetable)))) /// par puts nothing on the left, but a ] on the right) 
+		incelldelimiter(", ") ///puts comma in between the lo and hi
+   stats(first_stage_f instrument fixed_effects year_effects controls time_trend r2within N, ///
+         labels("F-statistic" "Instrument" "Major-by-age fixed effects" "Year-by-age fixed effects" "Controls" "Time trend" "R-squared" "Observations")  fmt(1 0 0 0 0 0 3 %8.0fc)) ///
+		 collabels(none) ///
+		 nodepvar
+
+		 
+reghdfe lnclusterwage $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict wageresid, resid		 
+reghdfe lncluster30hoursshare1 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict ind1resid, resid
+reghdfe lncluster30hoursshare2 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict ind2resid, resid
+reghdfe lnnationalhourscluster30share1 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict iv1resid, resid
+reghdfe lnnationalhourscluster30share2 $controls [aweight=weight], absorb(i.year c.year#i.cluster176 i.cluster176#i.agegroup) cluster(cluster30) resid
+predict iv2resid, resid
+
+		 
+
+gmm (eq1: wageresid - ind1resid*{beta})   ///
+    (eq2: wageresid - ind2resid*{beta}) [aweight=weight], ///
+    instruments(1: iv2resid, noconstant)   ///
+	instruments(2: iv1resid, noconstant)  ///
+vce(cluster cluster30) ///
+winitial(identity) ///
+twostep
+
+boottest _cons, cluster(cluster30) nonull 
+
+
+gmm (eq1: wageresid - ind1resid*{beta})   ///
+    (eq2: wageresid - ind2resid*{beta}) [aweight=weight], ///
+    instruments(1: ind2resid, noconstant)   ///
+	instruments(2: ind1resid, noconstant)  ///
+vce(cluster cluster30) ///
+winitial(identity) ///
+twostep 
+
+boottest _cons, cluster(cluster30) nonull 
+

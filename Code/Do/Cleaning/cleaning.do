@@ -1,0 +1,655 @@
+
+*Setting path and clearing*
+local master=$master
+if `master'==1{
+	clear
+}
+else {
+clear
+global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
+global rawdata "$path/data/raw"
+global intermediatedata "$path/data/intermediate"
+global cleandata "$path/data/clean"
+global interout "$path/intermediateoutput"
+global out "$path/output"
+}
+	
+	
+*Loading main ACS dataset*
+use "$rawdata/acsbase.dta", clear
+keep year statefip bpl educ educd sex age race raced hispan hispand school degfield degfieldd degfield2 degfield2d occ occsoc empstat empstatd wkswork2 wkswork1 uhrswork incwage perwt region ind indnaics
+
+
+splitsample, gen(sampleid, replace) rseed(894766)
+drop region statefip raced hispand school degfield degfield2
+
+drop if degfieldd==.
+
+*Education variables variable*
+gen college=(degfieldd>0)
+gen postgrad=(educ==11)
+gen professional=(educd==115)
+gen doublemajor=(degfield2d!=0)
+
+*Fixing neuroscience to be one variable*
+replace degfieldd=3611 if degfieldd==4003
+
+*Identifying nationals*
+gen national=(bpl<=56)
+drop bpl empstat educ educd 
+
+*Annual hours of work* 
+ 
+
+ 
+
+gen weeksworked=wkswork1 
+
+sum wkswork1 if wkswork2==6 
+
+replace weeksworked=`r(mean)' if wkswork2==6&weeksworked==. 
+
+sum wkswork1 if wkswork2==5 
+
+replace weeksworked=`r(mean)' if wkswork2==5&weeksworked==. 
+
+sum wkswork1 if wkswork2==4 
+
+replace weeksworked=`r(mean)' if wkswork2==4&weeksworked==. 
+
+sum wkswork1 if wkswork2==3 
+
+replace weeksworked=`r(mean)' if wkswork2==3&weeksworked==. 
+
+sum wkswork1 if wkswork2==2 
+
+replace weeksworked=`r(mean)' if wkswork2==2&weeksworked==. 
+
+sum wkswork1 if wkswork2==1 
+
+replace weeksworked=`r(mean)' if wkswork2==1&weeksworked==. 
+
+replace weeksworked=0 if wkswork2==0&weeksworked==. 
+
+ 
+
+gen annualhours=uhrswork*weeksworked 
+
+
+*Splitting up by age groups*
+gen age25=(age<=25)
+gen age2529=(25<=age&age<30)
+gen age3034=(30<=age&age<35)
+gen age3539=(35<=age&age<40)
+gen age4044=(40<=age&age<45)
+gen age4549=(45<=age&age<50)
+gen age5054=(50<=age&age<55)
+gen age5559=(55<=age&age<60)
+gen age6064=(60<=age&age<65)
+gen age65=(age>=65)
+
+gen agegroup=.
+replace agegroup=0 if age25==1
+replace agegroup=1 if age2529==1
+replace agegroup=2 if age3034==1
+replace agegroup=3 if age3539==1
+replace agegroup=4 if age4044==1
+replace agegroup=5 if age4549==1
+replace agegroup=6 if age5054==1
+replace agegroup=7 if age5559==1
+replace agegroup=8 if age6064==1
+replace agegroup=9 if age65==1
+
+
+label define agelabels 0 "Under 26" 1 "26 to 30" 2 "31 to 35" 3 "36 to 40" 4 "41 to 45" 5 "46 to 50" 6 "51 to 55" 7 "56 to 60" 8 "61 to 65" 9 "Over 65"
+label values agegroup agelabels
+
+*Calculating wages*
+
+
+gen wage=incwage/annualhours
+replace annualhours=0 if incwage==0
+replace wage=. if wage==0
+winsor2 wage, cuts(1 99) trim by(agegroup college year) replace
+
+
+
+drop age25 age2529 age3034 age3539 age4044 age4549 age5054 age5559 age6064 age65 weeksworked wkswork1 wkswork2 uhrswork weeksworked incwage
+
+compress
+
+
+*Calculating values that depend on non-graduates and don't use cluster definitions*
+gegen agemeanhours=mean(annualhours) if year==2009 [aweight=perwt], by(age degfieldd sex year)
+ereplace agemeanhours=min(agemeanhours), by(age degfieldd sex)
+gegen agemeanhours1=mean(annualhours) if year==2009&sampleid==1 [aweight=perwt], by(age degfieldd sex year sampleid)
+ereplace agemeanhours1=min(agemeanhours1), by(age degfieldd sex)
+gegen agemeanhours2=mean(annualhours) if year==2009&sampleid==2 [aweight=perwt], by(age degfieldd sex year sampleid)
+ereplace agemeanhours2=min(agemeanhours2), by(age degfieldd sex)
+
+
+
+gegen nationalclusteragemeanhours=mean(agemeanhours) if national==1 [aweight=perwt], by(national degfieldd year)
+gegen nationalclusteragemeanhours1=mean(agemeanhours1) if national==1 [aweight=perwt], by(national degfieldd year)
+gegen nationalclusteragemeanhours2=mean(agemeanhours2) if national==1 [aweight=perwt], by(national degfieldd year)
+ereplace nationalclusteragemeanhours=min(nationalclusteragemeanhours), by(degfieldd year)
+ereplace nationalclusteragemeanhours1=min(nationalclusteragemeanhours1), by(degfieldd year)
+ereplace nationalclusteragemeanhours2=min(nationalclusteragemeanhours2), by(degfieldd year)
+
+
+
+
+gegen nationalagemeanhours=mean(agemeanhours) if national==1 [aweight=perwt], by(national year)
+ereplace nationalagemeanhours=min(nationalagemeanhours)
+gegen nationalagemeanhours1=mean(agemeanhours1) if national==1 [aweight=perwt], by(national year)
+ereplace nationalagemeanhours1=min(nationalagemeanhours1)
+gegen nationalagemeanhours2=mean(agemeanhours2) if national==1 [aweight=perwt], by(national year)
+ereplace nationalagemeanhours2=min(nationalagemeanhours2)
+
+
+
+
+
+*hours weight
+gen hoursweight=annualhours*perwt
+gen agemeanhoursweight=agemeanhours*perwt
+
+gen totalhours=sum(hoursweight)
+
+gegen totalweight=sum(perwt), by(year)
+gegen totalhoursweight=sum(hoursweight), by(year)
+
+gegen totalweightsample=sum(perwt), by(sampleid year)
+gegen totalhoursweightsample=sum(hoursweight), by(sampleid year)
+
+gegen totalnationalweightsample=sum(perwt), by(national year sampleid)
+
+gegen totalagemeanhoursweight=sum(agemeanhoursweight) if national==1, by(national year)
+gegen totalagemeanhoursweightsample=sum(agemeanhoursweight) if national==1, by(national sampleid year)
+
+
+ereplace totalagemeanhoursweight=min(totalagemeanhoursweight), by(year)
+ereplace totalagemeanhoursweightsample=min(totalagemeanhoursweightsample), by(sampleid year)
+
+gegen totalnationalweight=sum(perwt), by(national year)
+
+
+**Occupation graduate share**
+gegen collegeoccshare=mean(college) [aweight=hoursweight] if year==2009, by(occsoc year)
+gegen majoroccshare=mean(collegeoccshare) [aweight=hoursweight], by(degfieldd)
+ereplace majoroccshare=max(majoroccshare), by(degfieldd)
+
+drop collegeoccshare
+
+
+*Dropping non-graduates*
+
+keep if college==1
+
+
+*Wages by cluster*
+
+
+gegen meanclusterhours=mean(annualhours) [aweight=perwt], by(degfieldd year)
+gegen meanclusterhours1=mean(annualhours) if sampleid==1 [aweight=perwt], by(degfieldd year sampleid)
+gegen meanclusterhours2=mean(annualhours) if sampleid==2 [aweight=perwt], by(degfieldd year sampleid)
+ereplace meanclusterhours1=min(meanclusterhours1), by(degfieldd year)
+ereplace meanclusterhours2=min(meanclusterhours2), by(degfieldd year)
+
+
+gegen clusterwage=mean(wage) [aweight=hoursweight], by(degfieldd agegroup year) 
+ereplace clusterwage=min(clusterwage), by(degfieldd agegroup year) 
+gen lnclusterwage=ln(clusterwage)
+
+*Wages for undergrads only or excluding professional qualifications, or double majors*
+gegen clusterwageug=mean(wage) if postgrad==0 [aweight=hoursweight], by(degfieldd postgrad agegroup year) 
+ereplace clusterwageug=min(clusterwageug), by(degfieldd agegroup year) 
+gen lnclusterwageug=ln(clusterwageug)
+
+gegen clusterwagenoprof=mean(wage) if professional==0 [aweight=hoursweight], by(degfieldd professional agegroup year) 
+ereplace clusterwagenoprof=min(clusterwagenoprof), by(degfieldd agegroup year) 
+gen lnclusterwagenoprof=ln(clusterwagenoprof)
+
+gegen clusterwagesingle=mean(wage) if doublemajor==0 [aweight=hoursweight], by(degfieldd doublemajor agegroup year)
+ereplace clusterwagesingle=min(clusterwagesingle), by(degfieldd agegroup year) 
+gen lnclusterwagesingle=ln(clusterwagesingle)
+
+
+
+drop wage clusterwagenoprof clusterwagesingle clusterwageug
+
+*Cluster shares and weights*
+
+
+compress
+
+*Calculating share of population with each degree*
+gegen clusterweight=sum(perwt), by(degfieldd year)
+
+gen clustershare=clusterweight/totalweight
+
+
+*Calculating the cell size weights*
+gegen weight=sum(perwt) if year==2009, by(year agegroup degfieldd)
+ereplace weight=max(weight), by(agegroup degfieldd)
+gegen agegroupmeanhours=mean(agemeanhours) if year==2009, by(year agegroup degfieldd)
+ereplace agegroupmeanhours=max(agemeanhours), by( agegroup degfieldd)
+replace weight=weight*agegroupmeanhours
+
+drop agegroupmeanhours
+*Same but for the split samples*
+gegen clusterweightsample=sum(perwt), by(degfieldd sampleid year)
+gen clustershare1=clusterweightsample/totalweightsample if sampleid==1
+gen clustershare2=clusterweightsample/totalweightsample if sampleid==2
+ereplace clustershare1=min(clustershare1) , by(degfieldd year)
+ereplace clustershare2=min(clustershare2) , by(degfieldd year)
+
+
+label var clustershare1 "Cluster share sample 1"
+label var clustershare2 "Cluster share sample 2"
+
+
+
+*Excluding those with further professional qualifications
+gegen clusternoproweight=sum(hoursweight) if professional==0, by(degfieldd year professional)
+gegen clusternoproweightsample=sum(hoursweight) if professional==0, by(degfieldd sampleid year professional)
+
+
+ereplace clusternoproweight=min(clusternoproweight), by(degfieldd year)
+ereplace clusternoproweightsample=min(clusternoproweightsample), by(degfieldd sampleid year)
+
+
+gen clusternoproshare=clusternoproweight/totalhoursweight
+gen clusternoproshare1=clusternoproweightsample/totalhoursweightsample if sampleid==1
+gen clusternoproshare2=clusternoproweightsample/totalhoursweightsample if sampleid==2
+ereplace clusternoproshare1=min(clusternoproshare1) , by(degfieldd year)
+ereplace clusternoproshare2=min(clusternoproshare2) , by(degfieldd year)
+
+
+*Excluding all postgrads
+gegen clusterugweight=sum(hoursweight) if postgrad==0, by(degfieldd year postgrad)
+gegen clusterugweightsample=sum(hoursweight) if postgrad==0, by(degfieldd sampleid year postgrad)
+
+ereplace clusterugweight=min(clusterugweight), by(degfieldd year)
+ereplace clusterugweightsample=min(clusterugweightsample), by(degfieldd sampleid year)
+
+
+
+gen clusterugshare=clusterugweight/totalhoursweight
+gen clusterugshare1=clusterugweightsample/totalhoursweightsample if sampleid==1
+gen clusterugshare2=clusterugweightsample/totalhoursweightsample if sampleid==2
+ereplace clusterugshare1=min(clusterugshare1) , by(degfieldd year)
+ereplace clusterugshare2=min(clusterugshare2) , by(degfieldd year)
+
+*50-50 split for double majors*
+replace perwt=perwt/2 if doublemajor==1
+gegen clusterweightdouble=sum(hoursweight), by(degfieldd year)
+gegen clusterweightdoublesample=sum(hoursweight), by(degfieldd sampleid year)
+
+
+*Getting the second subject counts*
+preserve
+replace hoursweight=round(hoursweight)
+contract degfield2d [fweight=hoursweight], freq(minorweight)
+rename degfield2d degfieldd
+tempfile minors
+save `minors', replace
+restore
+
+preserve
+keep if sampleid==1
+replace hoursweight=round(hoursweight)
+contract degfield2d [fweight=hoursweight], freq(minorweight1)
+rename degfield2d degfieldd
+tempfile minors1
+save `minors1', replace
+restore
+
+preserve
+replace hoursweight=round(hoursweight)
+keep if sampleid==2
+contract degfield2d [fweight=hoursweight], freq(minorweight2)
+rename degfield2d degfieldd
+tempfile minors2
+save `minors2', replace
+restore
+
+
+merge m:1 degfieldd using `minors'
+drop _merge
+merge m:1 degfieldd using `minors1'
+drop _merge
+merge m:1 degfieldd using `minors2'
+drop _merge
+
+
+replace perwt=perwt*2 if doublemajor==1
+replace clusterweightdouble=clusterweightdouble+minorweight
+gen clusterweightdouble1=clusterweightdoublesample+minorweight1 if sampleid==1
+gen clusterweightdouble2=clusterweightdoublesample+minorweight2 if sampleid==2
+
+
+
+*Cluster shares for the other measurements*
+gen clusterdoubleshare=clusterweightdouble/totalhoursweight
+gen clusterdoubleshare1=clusterweightdouble1/totalhoursweightsample if sampleid==1
+gen clusterdoubleshare2=clusterweightdouble2/totalhoursweightsample if sampleid==2
+
+ereplace clusterdoubleshare1=min(clusterdoubleshare1), by(degfieldd year)
+ereplace clusterdoubleshare2=min(clusterdoubleshare2), by(degfieldd year)
+
+
+
+drop cluster*weight clusterweightdouble totalweight minor*
+
+
+gegen meanhours=mean(annualhours) [aweight=perwt], by(year)
+gegen meanhours1=mean(annualhours) if sampleid==1 [aweight=perwt], by(year sampleid)
+gegen meanhours2=mean(annualhours) if sampleid==2 [aweight=perwt], by(year sampleid)
+ereplace meanhours1=min(meanhours1), by(year)
+ereplace meanhours2=min(meanhours2), by(year)
+
+
+rename meanclusterhours* meanclusterhourse*
+rename meanhours* meanhourse*
+
+foreach x in e e1 e2{
+gen lnclustershar`x'=ln(clustershar`x')
+gen clusterhoursshar`x'=clustershar`x'*meanclusterhours`x'/meanhours`x'
+gen lnclusterhoursshar`x'=ln(clusterhoursshar`x')
+
+gen lnclusterugshar`x'=ln(clusterugshar`x')
+gen lnclusternoproshar`x'=ln(clusternoproshar`x')
+gen lnclusterdoubleshar`x'=ln(clusterdoubleshar`x')
+
+}
+
+rename meanclusterhourse* meanclusterhours*
+drop meanhourse*
+
+
+compress
+
+
+gegen nationalclusterweight=sum(perwt), by(national degfieldd year)
+gen nationalclustershare=nationalclusterweight/totalnationalweight if national==1
+ereplace nationalclustershare=min(nationalclustershare), by(degfieldd year)
+
+*Sample split
+gegen nationalclusterweightsample=sum(perwt), by(national degfieldd year sampleid)
+gen nationalclustershare1=nationalclusterweightsample/totalnationalweightsample if national==1&sampleid==1
+gen nationalclustershare2=nationalclusterweightsample/totalnationalweightsample if national==1&sampleid==2
+ereplace nationalclustershare1=min(nationalclustershare1), by(degfieldd year)
+ereplace nationalclustershare2=min(nationalclustershare2), by(degfieldd year)
+
+drop totalnationalweightsample nationalclusterweightsample nationalclusterweight totalnationalweight
+
+
+compress
+
+*Weighting by age mean hours*
+
+gen nationalhoursclustershare=nationalclustershare*nationalclusteragemeanhours/nationalagemeanhours
+gen lnnationalhoursclustershare=ln(nationalhoursclustershare)
+gen nationalhoursclustershare1=nationalclustershare1*nationalclusteragemeanhours1/nationalagemeanhours1
+gen lnnationalhoursclustershare1=ln(nationalhoursclustershare1)
+gen nationalhoursclustershare2=nationalclustershare2*nationalclusteragemeanhours2/nationalagemeanhours2
+gen lnnationalhoursclustershare2=ln(nationalhoursclustershare2)
+
+
+
+drop nationalclusteragemeanhours* nationalagemeanhours* 
+
+
+
+*Excluding those with further professional qualifications
+gegen nationalclusternoproweight=sum(agemeanhoursweight) if professional==0&national==1, by(degfieldd year professional national)
+gegen nationalclusternoproweightsample=sum(agemeanhoursweight) if professional==0&national==1, by(degfieldd sampleid year professional national)
+
+
+ereplace nationalclusternoproweight=min(nationalclusternoproweight), by(degfieldd year)
+ereplace nationalclusternoproweightsample=min(nationalclusternoproweightsample), by(degfieldd sampleid year)
+
+
+gen nationalclusternoproshare=nationalclusternoproweight/totalagemeanhoursweight
+gen nationalclusternoproshare1=nationalclusternoproweightsample/totalagemeanhoursweightsample if sampleid==1
+gen nationalclusternoproshare2=nationalclusternoproweightsample/totalagemeanhoursweightsample if sampleid==2
+ereplace nationalclusternoproshare1=min(nationalclusternoproshare1) , by(degfieldd year)
+ereplace nationalclusternoproshare2=min(nationalclusternoproshare2) , by(degfieldd year)
+
+
+*Excluding all postgrads
+gegen nationalclusterugweight=sum(agemeanhoursweight) if postgrad==0&national==1, by(degfieldd year postgrad national)
+gegen nationalclusterugweightsample=sum(agemeanhoursweight) if postgrad==0&national==1, by(degfieldd sampleid year postgrad national)
+
+ereplace nationalclusterugweight=min(nationalclusterugweight), by(degfieldd year)
+ereplace nationalclusterugweightsample=min(nationalclusterugweightsample), by(degfieldd sampleid year)
+
+
+
+gen nationalclusterugshare=nationalclusterugweight/totalagemeanhoursweight
+gen nationalclusterugshare1=nationalclusterugweightsample/totalagemeanhoursweightsample if sampleid==1
+gen nationalclusterugshare2=nationalclusterugweightsample/totalagemeanhoursweightsample if sampleid==2
+ereplace nationalclusterugshare1=min(nationalclusterugshare1) , by(degfieldd year)
+ereplace nationalclusterugshare2=min(nationalclusterugshare2) , by(degfieldd year)
+
+*50-50 split for double majors*
+replace perwt=perwt/2 if doublemajor==1
+gegen nationalclusterweightdouble=sum(agemeanhoursweight), by(degfieldd year)
+gegen ntlclusterweightdoublesample=sum(agemeanhoursweight), by(degfieldd sampleid year)
+
+
+*Getting the second subject counts*
+replace agemeanhoursweight=round(agemeanhoursweight)
+preserve
+contract degfield2d [fweight=agemeanhoursweight], freq(minorweight)
+rename degfield2d degfieldd
+tempfile minors
+save `minors', replace
+restore
+
+preserve
+keep if sampleid==1
+contract degfield2d [fweight=agemeanhoursweight], freq(minorweight1)
+rename degfield2d degfieldd
+tempfile minors1
+save `minors1', replace
+restore
+
+preserve
+keep if sampleid==2
+contract degfield2d [fweight=agemeanhoursweight], freq(minorweight2)
+rename degfield2d degfieldd
+tempfile minors2
+save `minors2', replace
+restore
+
+
+merge m:1 degfieldd using `minors'
+drop _merge
+merge m:1 degfieldd using `minors1'
+drop _merge
+merge m:1 degfieldd using `minors2'
+drop _merge
+
+
+replace perwt=perwt*2 if doublemajor==1
+replace nationalclusterweightdouble=nationalclusterweightdouble+minorweight
+gen nationalclusterweightdouble1=ntlclusterweightdoublesample+minorweight1 if sampleid==1
+gen nationalclusterweightdouble2=ntlclusterweightdoublesample+minorweight2 if sampleid==2
+
+
+
+*Nationalcluster shares for the other measurements*
+gen nationalclusterdoubleshare=nationalclusterweightdouble/totalagemeanhoursweight
+gen nationalclusterdoubleshare1=nationalclusterweightdouble1/totalagemeanhoursweightsample if sampleid==1
+gen nationalclusterdoubleshare2=nationalclusterweightdouble2/totalagemeanhoursweightsample if sampleid==2
+
+ereplace nationalclusterdoubleshare1=min(nationalclusterdoubleshare1), by(degfieldd year)
+ereplace nationalclusterdoubleshare2=min(nationalclusterdoubleshare2), by(degfieldd year)
+
+drop *agemeanhours* *clusterweight* totalagemeanhoursweight  minor*
+
+
+
+
+
+*Gender controls*
+gen female=(sex==2)
+gegen femaleshare=mean(female) [aweight=perwt] , by(degfieldd agegroup year)
+gen femalehours=female*annualhours
+gegen meanfemalehours=mean(femalehours) [aweight=perwt] , by(degfieldd agegroup year)
+gen femalehoursshare=meanfemalehours/meanclusterhours
+
+drop female femalehours meanfemalehours sex
+
+
+*Average age*
+*Gender controls*
+gegen averageage=mean(age) [aweight=hoursweight] , by(degfieldd agegroup year)
+ereplace averageage=min(averageage), by(degfieldd agegroup year)
+
+
+
+*Race controls*
+gen black=(race==2)
+gegen blackshare=mean(black) [aweight=perwt] , by(degfieldd agegroup year)
+gen blackhours=black*annualhours
+gegen meanblackhours=mean(blackhours) [aweight=perwt] , by(degfieldd agegroup year)
+gen blackhoursshare=meanblackhours/meanclusterhours
+
+drop black blackhours meanblackhours
+
+gen asian=(race==4|race==5|race==6)
+gegen asianshare=mean(asian) [aweight=perwt] , by(degfieldd agegroup year)
+gen asianhours=asian*annualhours
+gegen meanasianhours=mean(asianhours) [aweight=perwt] , by(degfieldd agegroup year)
+gen asianhoursshare=meanasianhours/meanclusterhours
+
+drop asian asianhours meanasianhours race
+
+
+gen hispanic=(hispan>0)
+gegen hispanicshare=mean(hispanic) [aweight=perwt] , by(degfieldd agegroup year)
+gen hispanichours=hispanic*annualhours
+gegen meanhispanichours=mean(hispanichours) [aweight=perwt] , by(degfieldd agegroup year)
+gen hispanichoursshare=meanhispanichours/meanclusterhours
+
+drop hispan hispanic hispanichours meanhispanichours
+
+
+
+*Collapsing to an age cluster level dataset*
+drop age sampleid annualhours perwt
+drop if degfieldd==.|degfieldd==0
+gen n=_n
+egen rowmin=min(n), by(degfieldd agegroup year)
+drop if n!=rowmin
+drop rowmin n
+gen n=_n
+egen rowmin=min(n), by(degfieldd agegroup year)
+drop if n!=rowmin
+drop rowmin n
+
+
+*Classifying stem degrees*
+gen stem=0
+replace stem=1 if degfieldd==1103|degfieldd==1104|degfieldd==1105|degfieldd==1106|degfieldd==1301|degfieldd==1302|degfieldd==2001|degfieldd==2100|degfieldd==2101|degfieldd==2102|degfieldd==2105|degfieldd==2106|degfieldd==2107|degfieldd==2400|degfieldd==2401|degfieldd==2402|degfieldd==2403|degfieldd==2404|degfieldd==2405|degfieldd==2406|degfieldd==2407|degfieldd==2408|degfieldd==2409|degfieldd==2410|degfieldd==2411|degfieldd==2412|degfieldd==2413|degfieldd==2414|degfieldd==2415|degfieldd==2416|degfieldd==2417|degfieldd==2418|degfieldd==2419|degfieldd==2499|degfieldd==2500|degfieldd==2501|degfieldd==2502|degfieldd==2503|degfieldd==2504|degfieldd==2599|degfieldd==3600|degfieldd==3601|degfieldd==3602|degfieldd==3603|degfieldd==3604|degfieldd==3605|degfieldd==3606|degfieldd==3607|degfieldd==3608|degfieldd==3609|degfieldd==3611|degfieldd==3699|degfieldd==3600|degfieldd==3601|degfieldd==3602|degfieldd==3801|degfieldd==4002|degfieldd==4003|degfieldd==4005|degfieldd==4006|degfieldd==5000|degfieldd==5001|degfieldd==5002|degfieldd==5003|degfieldd==5004|degfieldd==5005|degfieldd==5006|degfieldd==5007|degfieldd==5008|degfieldd==5098|degfieldd==5102|degfieldd==5901|degfieldd==6106|degfieldd==6108|degfieldd==6202|degfieldd==6212
+
+
+
+
+
+save "$intermediatedata/nationalclustersprep", replace
+
+*Aggregating to higher clusters*
+foreach sample in weighted_average_linkage_jsd_soc4 weighted_average_linkage_jsd_soc2 weighted_average_linkage_jsd_soc3 weighted_average_linkage_manhattan_soc2 weighted_average_linkage_manhattan_soc3 weighted_average_linkage_manhattan_soc4 weighted_ward_linkage_jsd_soc4 weighted_ward_linkage_jsd_soc3 weighted_ward_linkage_jsd_soc2 weighted_average_linkage_jsd_soc409 weighted_average_linkage_jsd_soc209 weighted_average_linkage_jsd_soc309{
+
+global sample `sample'	
+use "$intermediatedata/nationalclustersprep", clear
+
+
+*Merging in degree cluster data for first and second major*
+
+merge m:1 degfieldd using "$intermediatedata/$sample"
+drop _merge
+
+
+save "$intermediatedata/data$sample", replace
+
+
+use "$intermediatedata/data$sample", clear
+
+
+*Calculating the cluster share and instrument for higher order clusters*
+foreach y in e e1 e2{
+foreach x in 20 25 30 40 50 60 70 80 90 100 101 171 175{
+	capture: gegen cluster`x'hoursshar`y'=sum(clusterhoursshar`y'), by(cluster`x' agegroup year)
+	capture: gen lncluster`x'hoursshar`y'=ln(cluster`x'hoursshar`y')
+	capture: gegen nationalhourscluster`x'shar`y'=sum(nationalhoursclustershar`y'), by(cluster`x' agegroup year)
+    capture: gen lnnationalhourscluster`x'shar`y'=ln(nationalhourscluster`x'shar`y')
+	*Leave one out cluster shares
+	capture: gen cluster`x'hoursshareminusown`y'=cluster`x'hoursshare-clusterhoursshar`y'
+	capture: gen lncluster`x'hoursshareminusown`y'=ln(cluster`x'hoursshareminusown`y')
+    capture: gen nationalcluster`x'shar`y'minusown=nationalhourscluster`x'shar`y'-nationalhoursclustershar`y'
+    capture: gen lnntlcluster`x'shar`y'minusown=ln(nationalcluster`x'shar`y'minusown)
+	
+	*Cluster share with different supply measures*
+				capture: gegen cluster`x'doubleshar`y'=sum(clusterdoubleshar`y'), by(cluster`x' agegroup year)
+    capture: gen lncluster`x'doubleshar`y'=ln(cluster`x'doubleshar`y')
+
+	
+				capture: gegen cluster`x'ugshar`y'=sum(clusterugshar`y'), by(cluster`x' agegroup year)
+    capture: gen lncluster`x'ugshar`y'=ln(cluster`x'ugshar`y')
+
+			capture: gegen cluster`x'noproshar`y'=sum(clusternoproshar`y'), by(cluster`x' agegroup year)
+    capture: gen lncluster`x'noproshar`y'=ln(cluster`x'noproshar`y')
+
+	
+
+	*National with different supply measures
+			capture: gegen nationalcluster`x'doubleshar`y'=sum(nationalclusterdoubleshar`y'), by(cluster`x' agegroup year)
+    capture: gen lnnationalcluster`x'doubleshar`y'=ln(nationalcluster`x'doubleshar`y')
+
+	
+				capture: gegen nationalcluster`x'ugshar`y'=sum(nationalclusterugshar`y'), by(cluster`x' agegroup year)
+    capture: gen lnnationalcluster`x'ugshar`y'=ln(nationalcluster`x'ugshar`y')
+
+			capture: gegen nationalcluster`x'noproshar`y'=sum(nationalclusternoproshar`y'), by(cluster`x' agegroup year)
+    capture: gen lnnationalcluster`x'noproshar`y'=ln(nationalcluster`x'noproshar`y')
+
+
+}
+}
+rename *hoursshareminusowne* *hoursshareminusown*
+gen clusterage=cluster175*10+agegroup
+label var clusterage "Unique identifier"
+
+
+
+*Initial wages*
+
+
+foreach x in 25 30 175{
+gegen initialwage`x'=mean(clusterwage) [aweight=weight] if year==2009, by(cluster`x' year)
+ereplace initialwage`x'=min(initialwage`x'), by(cluster`x')
+
+sum initialwage`x' [aweight=weight]
+gen stdinitialwage`x'=(initialwage`x'-`r(mean)')/`r(sd)'
+
+
+}
+
+*Calculating initial cluster sizes and percentage error for measurement error models*
+foreach x in 25 30 175{
+
+gegen initialcluster`x'share=min(cluster`x'hoursshare) if year==2009, by(cluster`x' year)
+ereplace initialcluster`x'share=min(initialcluster`x'share), by(cluster`x')
+*This comes from the standard deviation of a binomial distribution divided by its mean*
+gen lninitialcluster`x'share=ln(initialcluster`x'share)
+}
+
+*Saving data*sample
+cd "$cleandata"
+save analysis`sample' , replace
+}
