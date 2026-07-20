@@ -1,0 +1,190 @@
+====================================================================== 
+R REPLICATION vs AGK STATA: COMPARISON REPORT
+Generated: 2026-03-26 15:42:21
+Tolerance: 1.00e-06
+====================================================================== 
+
+====================================================================== 
+March cells (6318)  [2_Demographic_cells_pt2.R] 
+====================================================================== 
+  R output:      Data/series/marchcells6318.csv
+  AGK reference: Data/AGK/marchcells6318.dta
+
+  -- Dimensions --
+  Rows:    R = 24940,  AGK = 24942
+  Columns: R = 18,  AGK = 18
+
+  -- Column coverage --
+  [PASS] Column sets are identical
+
+  -- Per-year observation counts --
+  [FAIL] 2 year(s) with row-count mismatch (showing up to 10):
+   year n_r n_agk diff
+44 2006 453   454   -1
+50 2012 453   454   -1
+
+  -- Missing observation detail --
+  Rows in AGK but absent from R (anti-join on year/edcat5/female/exp ):
+    year=2006  edcat5=2  female=0  exp=47  q_obs=2  q_lsweight=81752.3579101562  _merge=2 
+    year=2012  edcat5=2  female=0  exp=47  q_obs=1  q_lsweight=99294  _merge=3 
+  Note: exp >= 40 places these cells at the top of experience category 5
+  (range 40-48). With q_obs = 1-2 they carry negligible aggregate weight.
+
+====================================================================== 
+Efficiency units (6318)  [3_Efficiency_units.R] 
+====================================================================== 
+  R output:      Data/series/effunits-exp-byexp-6318.csv
+  AGK reference: Data/AGK/effunits-exp-byexp-6318.dta
+
+  -- Dimensions --
+  Rows:    R = 275,  AGK = 275
+  Columns: R = 28,  AGK = 26
+
+  -- Column coverage --
+  Only in R:    ln_supp_clg, ln_supp_hsg 
+
+  -- Per-year observation counts --
+  Year range: R = 1963-2017,  AGK = 1963-2017
+
+  -- Numeric value comparisons --
+  Merging on: year, expcat
+  Matched: 275  |  R-only: 0  |  AGK-only: 0
+
+  [~OK ] euexp_lnclg                   max_diff = 1.43e-04  mean_diff = 5.95e-05  corr = 1.000000  (n = 275)
+  [~OK ] euexp_shclg                   max_diff = 3.12e-05  mean_diff = 1.33e-05  corr = 1.000000  (n = 275)
+  [FAIL] eu_lnclg                      max_diff = 7.60e-05  mean_diff = 6.17e-05  corr = 1.000000  (n = 275)
+  [~OK ] eu_shclg                      max_diff = 1.76e-05  mean_diff = 1.47e-05  corr = 1.000000  (n = 275)
+  [~OK ] hr_clg                        max_diff = 6.90e+03  mean_diff = 1.74e+03  corr = 1.000000  (n = 275)
+  [~OK ] hr_hsg                        max_diff = 7.89e+03  mean_diff = 2.50e+03  corr = 1.000000  (n = 275)
+
+  -- Per-year summary (sample of years) --
+  [FAIL] Year 1963:  max_diff = 7.97e+02  mean_corr = 1.000000
+  [FAIL] Year 1974:  max_diff = 1.46e+03  mean_corr = 1.000000
+  [FAIL] Year 1985:  max_diff = 1.56e+03  mean_corr = 1.000000
+  [FAIL] Year 1995:  max_diff = 1.51e+03  mean_corr = 1.000000
+  [FAIL] Year 2006:  max_diff = 3.94e+03  mean_corr = 1.000000
+  [FAIL] Year 2017:  max_diff = 4.05e+03  mean_corr = 1.000000
+
+  -- Relative-difference assessment --
+  max_rel = max|R - AGK| / max(|AGK|, 1e-10)
+
+  euexp_lnclg                   max_rel =  0.7535%  (minor)  [near-zero denom: year=1980 |AGK|=5.15e-03 abs_diff=3.88e-05]
+  euexp_shclg                   max_rel =  0.0112%  (negligible)
+  eu_lnclg                      max_rel =  2.0819%  (notable)  [near-zero denom: year=1989 |AGK|=2.76e-03 abs_diff=5.75e-05]
+  eu_shclg                      max_rel =  0.0048%  (negligible)
+  hr_clg                        max_rel =  0.0000%  (negligible)
+  hr_hsg                        max_rel =  0.0000%  (negligible)
+
+====================================================================== 
+Labor supply weights (6318)  [5_Labor_supply_weights.R] 
+====================================================================== 
+  R output:      Data/series/march-lswts-exp-6318.csv
+  AGK reference: Data/AGK/march-lswts-exp.dta
+
+  -- Dimensions --
+  Rows:    R = 2750,  AGK = 2750
+  Columns: R = 5,  AGK = 5
+
+  -- Column coverage --
+  [PASS] Column sets are identical
+
+  -- Per-year observation counts --
+  Year range: R = 1963-2017,  AGK = 1963-2017
+
+  -- Numeric value comparisons --
+  Merging on: year, expcat, edcat5, female
+  Matched: 2750  |  R-only: 0  |  AGK-only: 0
+
+  [~OK ] lswt                          max_diff = 1.61e+01  mean_diff = 2.35e+00  corr = 1.000000  (n = 2750)
+
+  -- Per-year summary (sample of years) --
+  [FAIL] Year 1963:  max_diff = 7.52e+00  mean_corr = 1.000000
+  [FAIL] Year 1974:  max_diff = 7.74e+00  mean_corr = 1.000000
+  [FAIL] Year 1985:  max_diff = 1.25e+01  mean_corr = 1.000000
+  [FAIL] Year 1995:  max_diff = 1.47e+01  mean_corr = 1.000000
+  [FAIL] Year 2006:  max_diff = 1.49e+01  mean_corr = 1.000000
+  [FAIL] Year 2017:  max_diff = 7.88e+00  mean_corr = 1.000000
+
+  -- Relative-difference assessment --
+  max_rel = max|R - AGK| / max(|AGK|, 1e-10)
+
+  lswt                          max_rel =  0.0000%  (negligible)
+
+====================================================================== 
+4. WAGE PREMIUM SERIES  [scripts 4_Wage_equations / 6_Wages / 7_Wage_premiums] 
+====================================================================== 
+  R output:      Data/series/clghsgwg-march-regseries-exp-6318.csv
+  AGK reference: Data/AGK/clghsgwg-march-regseries-exp.dta
+
+  -- Dimensions --
+  Rows:    R = 275,  AGK = 275
+  Years:   R = 1963-2017,  AGK = 1963-2017
+  Only in R:    clpwg, hsgwg, clgwg, clpwg_m, hsgwg_m, clgwg_m, clpwg_f, hsgwg_f, clgwg_f 
+
+  Overlap years: 1963-2017  (n = 55)
+  Matched rows: 275  (R-only: 0, AGK-only: 0)
+
+
+  -- Value comparisons (merged on year, expcat) --
+  [PASS] clphsg_all                    max_diff = 9.84e-07  mean_diff = 3.48e-07  corr = 1.000000  (n = 275)
+  [PASS] clghsg_all                    max_diff = 9.24e-07  mean_diff = 3.27e-07  corr = 1.000000  (n = 275)
+  [~OK ] clphsg_all_m                  max_diff = 1.21e-06  mean_diff = 3.76e-07  corr = 1.000000  (n = 275)
+  [~OK ] clghsg_all_m                  max_diff = 1.03e-06  mean_diff = 3.74e-07  corr = 1.000000  (n = 275)
+  [PASS] clphsg_all_f                  max_diff = 6.23e-07  mean_diff = 2.56e-07  corr = 1.000000  (n = 275)
+  [PASS] clghsg_all_f                  max_diff = 7.67e-07  mean_diff = 3.08e-07  corr = 1.000000  (n = 275)
+
+  -- Per-year summary for clphsg_all (sample of years) --
+  [PASS] Year 1963:  max_diff = 2.84e-07  corr = NA
+  [PASS] Year 1974:  max_diff = 3.38e-07  corr = NA
+  [PASS] Year 1985:  max_diff = 4.69e-07  corr = NA
+  [PASS] Year 1995:  max_diff = 7.54e-07  corr = NA
+  [PASS] Year 2006:  max_diff = 2.54e-07  corr = NA
+  [PASS] Year 2017:  max_diff = 4.13e-08  corr = NA
+
+====================================================================== 
+5. AGK 2005 DATA SPLICE — METHODOLOGICAL NOTE 
+====================================================================== 
+
+  AGK's GK dataset (taba1_a2_figa1_1914_2017.do) is not a single consistently-
+  constructed series. It is a splice of two methodologically distinct series:
+
+  Pre-2006:  colhs1405.dta  — the original AKK (2008) CPS construction for
+             wprem2 and relsup. AKK (2008) used March CPS data through ~2005,
+             so the implicit labor supply weights (avlswt) are averaged over
+             approximately 1963-2005 (a '6305-period' weight basis).
+
+  2006-2017: km-cg-rsup-6317.dta — AGK's updated CPS series, constructed
+             using marchcells6318.dta (confirmed in assemb-march-lswts-exp.do
+             line 26: 'use series/marchcells6318'). The avlswt in this series
+             are averaged over 1963-2017 (a '6318-period' weight basis).
+
+  HARDCODED LEVEL-SHIFT AT 2005 (taba1_a2_figa1_1914_2017.do lines 27-30):
+
+    replace wprem2 = clphsg_all + .0037398  if year >= 2006
+    replace relsup = eu_lnclg  + .0152795   if year >= 2006
+
+  These offsets are the gap between colhs1405 and km-cg-rsup-6317 in 2005.
+  They are specific to the 6317 series and will differ for any other construction.
+  The two series are joined using a single year's level difference as a permanent
+  offset — this is not a principled methodological splice.
+
+  IMPLICATIONS FOR THIS REPLICATION:
+
+  1. The 6318 wage premium comparison above (Section 4) compares R output against
+     AGK's km-cg-rsup-6317.dta for 1963-2017 using 6318-period weights throughout.
+     This matches AGK's post-2005 construction but differs from the 6305-weighted
+     AKK (2008) data used for pre-2006 observations in AGK's GK dataset.
+
+  2. Any comparison of GK-period regression results (Tables A1, A2, Figure A1)
+     between AGK and this replication reflects both (a) code corrections and
+     (b) the shift from AGK's spliced series to this replication's single
+     consistently-constructed series (1963-2023, 6323-period weights).
+
+  3. The hardcoded offsets (.0037398, .0152795) are not replicated here because
+     this replication uses a single uninterrupted series. Any offset between the
+     two approaches at 2005 will differ from AGK's values.
+
+  CONCLUSION: GK-period results should not be expected to match AGK exactly even
+  after all code corrections, owing to this data construction difference. The
+  paper already notes that 'replications are not exact, given how the dataset
+  has changed over time'; this splice is a specific, quantifiable reason why.

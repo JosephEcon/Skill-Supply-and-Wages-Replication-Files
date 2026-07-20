@@ -1,17 +1,15 @@
-*Setting path and clearing*
-local master=$master
-if `master'==1{
-	clear
+/*==============================================================================
+  Script:   Figure 1.do
+  Paper:    Figure 1: Full-time Labour Income by Major (2019)
+  Output:   $out/degearnings.png
+==============================================================================*/
+
+* Shared setup: paths, globals, helper programs
+local master = $master
+if `master' != 1 {
+    global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages"
 }
-else {
-clear
-global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediateoutput"
-global out "$path/output"
-}
+do "$path/Code/Do/setup_globals.do"
 
 
 *Loading data
@@ -50,7 +48,8 @@ replace weeksworked=0 if wkswork2==0&weeksworked==.
 
 
 
-gen annualhours=uhrswork*weeksworked 
+gen annualhours=uhrswork*weeksworked
+* Full-time threshold: 1,560 annual hours = 30 hours/week * 52 weeks
 drop if annualhours<1560
 
 *Subject markers*
@@ -60,4 +59,4 @@ keep if degfieldd==2300|degfieldd==2414|degfieldd==3301|degfieldd==3600|degfield
 
 graph hbar incwage, over(degfieldd, sort(1) relabel(1 "High School Graduate" 2 "General Education" 3 "Mechanical Engineering" 4 "English Language and Literature" 5 "Biology" 6 "Mathematics" 7 "Chemistry" 8 "Psychology" 9 "Economics" 10 "Political Science" 11 "Sociology" 12 "Fine Arts" 13 "Nursing" 14 "Business" 15 "History")) b1title("Average Labour Income (USD)") ytitle("")  saving("$out/degearnings", replace) 
 
-graph export "$out/degearnings.jpg", as(jpg) replace
+graph export "$out/degearnings.png", as(png) replace

@@ -1,17 +1,17 @@
-*Setting path and clearing*
-local master=$master
-if `master'==1{
-	clear
+/*==============================================================================
+  Script:   Figures 4 and 5.do
+  Paper:    Figure 4: Graduate Share in Occupations
+            Figure 5: Same Skill Cluster Share in Occupations
+  Outputs:  $out/kdensitycollege.png, $out/kdensitycluster25.png,
+            $out/cdfgraduate.png, $out/cdfcluster25.png
+==============================================================================*/
+
+* Shared setup: paths, globals, helper programs
+local master = $master
+if `master' != 1 {
+    global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages"
 }
-else {
-clear
-global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediateoutput"
-global out "$path/output"
-}
+do "$path/Code/Do/setup_globals.do"
 *Graphing non-college or cluster share of occupation*
 
 use "$rawdata/acssimple.dta", clear
@@ -27,7 +27,10 @@ bys occ: gegen meancollegeshareocc=mean(college) [aweight=perwt]
 label var meancollegeshareocc "College Educated Share in Occupation"
 
 kdensity meancollegeshareocc if college==1, note("") title("")
-graph export "$out/kdensitycollege.jpg", as(jpg) replace
+graph export "$out/kdensitycollege.png", as(png) replace
+kdensity meancollegeshareocc if college==1, note("") xtitle("Proportion of College Educated Workers in Same Occupation who are Fellow Graduates") title("Distribution of Graduate Share in Same Occupation")
+graph export "$out/kdensitycollegepresentation.png", as(png) replace
+
 merge m:1 degfieldd using "$intermediatedata/weighted_average_linkage_jsd_soc4"
 drop _merge
 
@@ -50,17 +53,20 @@ use "$cleandata/clusteroccshare.dta", clear
 
 
 kdensity meanclustershareocc25 if college==1, note("") title("")
-graph export "$out/kdensitycluster25.jpg", as(jpg) replace
+graph export "$out/kdensitycluster25.png", as(png) replace
+
+kdensity meanclustershareocc25 if college==1, note("") title("Distribution of Same Skill Cluster Share in Same Occupation") xtitle("Proportion of Workers in Same Occupation from the Same Skill Cluster")
+graph export "$out/kdensitycluster25presentation.png", as(png) replace
 
 
 cumul meancollegeshareocc if college==1, generate(meancollegeshareocccumul)
 line meancollegeshareocccumul meancollegeshareocc if college==1, sort
-graph export "$out/cdfgraduate.jpg", as(jpg) replace
+graph export "$out/cdfgraduate.png", as(png) replace
 
 
 cumul meanclustershareocc25, generate(meanclustershareocc25cumul)
 line meanclustershareocc25cumul meanclustershareocc25, sort
 
-graph export "$out/cdfcluster25.jpg", as(jpg) replace
+graph export "$out/cdfcluster25.png", as(png) replace
 
 

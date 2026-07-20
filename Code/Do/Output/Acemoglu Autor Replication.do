@@ -1,17 +1,16 @@
-*Setting path and clearing*
-local master=$master
-if `master'==1{
-	clear
+/*==============================================================================
+  Script:   Acemoglu Autor Replication.do
+  Paper:    Tables C1, C2
+  Outputs:  tableC1_acemoglu_autor.rtf, tableC1_acemoglu_autor_fd.rtf,
+            tableC2_wild_bootstrap_aa.rtf
+==============================================================================*/
+
+* Shared setup: paths, globals, helper programs
+local master = $master
+if `master' != 1 {
+    global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages"
 }
-else {
-clear
-global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediateoutput"
-global out "$path/output"
-}
+do "$path/Code/Do/setup_globals.do"
 
 
 *Merging wage and supply series*
@@ -33,21 +32,26 @@ label var t "Time"
 label var t2 "Time^2/100"
 
 
+*───────────────────────────────────────────────────────────────────────────────
+* Table C1: Acemoglu and Autor (2011) Replication (Levels and First Differences)
+* Outputs: $out/tableC1_acemoglu_autor, $out/tableC1_acemoglu_autor_fd
+*───────────────────────────────────────────────────────────────────────────────
+
 *Table 9 of Acemoglu and Autor (2011)*
 reghdfe clphsg_exp eu_lnclg euexp_lnclg t t2 if expcat<=4, absorb(i.expcat)
-outreg2 using "$out/exactreplication", dec(3) nocons label word replace ctitle(All) addnote("Homoscedastic standard errors in parentheses. Panel A contains experience group fixed effects and Panel B has no constant.") noaster
+outreg2 using "$out/tableC1_acemoglu_autor", dec(3) nocons label word replace ctitle(All) addnote("Homoscedastic standard errors in parentheses. Panel A contains experience group fixed effects and Panel B has no constant.") noaster
 
 reghdfe clphsg_exp eu_lnclg euexp_lnclg t t2 if expcat==1, absorb(i.expcat)
-outreg2 using "$out/exactreplication", dec(3) nocons label word append ctitle(0-9) noaster
+outreg2 using "$out/tableC1_acemoglu_autor", dec(3) nocons label word append ctitle(0-9) noaster
 
 reghdfe clphsg_exp eu_lnclg euexp_lnclg t t2 if expcat==2, absorb(i.expcat)
-outreg2 using "$out/exactreplication", dec(3) nocons label word append ctitle(10-19) noaster
+outreg2 using "$out/tableC1_acemoglu_autor", dec(3) nocons label word append ctitle(10-19) noaster
 
 reghdfe clphsg_exp eu_lnclg euexp_lnclg t t2 if expcat==3, absorb(i.expcat)
-outreg2 using "$out/exactreplication", dec(3) nocons label word append ctitle(20-29) noaster
+outreg2 using "$out/tableC1_acemoglu_autor", dec(3) nocons label word append ctitle(20-29) noaster
 
 reghdfe clphsg_exp eu_lnclg euexp_lnclg t t2 if expcat==4, absorb(i.expcat)
-outreg2 using "$out/exactreplication", dec(3) nocons label word append ctitle(30-39) noaster
+outreg2 using "$out/tableC1_acemoglu_autor", dec(3) nocons label word append ctitle(30-39) noaster
 
 
 
@@ -57,19 +61,24 @@ outreg2 using "$out/exactreplication", dec(3) nocons label word append ctitle(30
 xtset expcat year
 
 reg d.clphsg_exp d.eu_lnclg d.euexp_lnclg d.t d.t2 if expcat<=4, nocons 
-outreg2 using "$out/differencedreplication", dec(3) nocons label word replace ctitle(All) noaster
+outreg2 using "$out/tableC1_acemoglu_autor_fd", dec(3) nocons label word replace ctitle(All) noaster
 
 reg d.clphsg_exp d.eu_lnclg d.euexp_lnclg d.t d.t2  if expcat==1, nocons 
-outreg2 using "$out/differencedreplication", dec(3) nocons label word append ctitle(0-9) noaster
+outreg2 using "$out/tableC1_acemoglu_autor_fd", dec(3) nocons label word append ctitle(0-9) noaster
 
 reg  d.clphsg_exp d.eu_lnclg d.euexp_lnclg d.t d.t2  if expcat==2, nocons 
-outreg2 using "$out/differencedreplication", dec(3) nocons label word append ctitle(10-19) noaster
+outreg2 using "$out/tableC1_acemoglu_autor_fd", dec(3) nocons label word append ctitle(10-19) noaster
 
 reg  d.clphsg_exp d.eu_lnclg d.euexp_lnclg d.t d.t2 if expcat==3, nocons 
-outreg2 using "$out/differencedreplication", dec(3) nocons label word append ctitle(20-29) noaster
+outreg2 using "$out/tableC1_acemoglu_autor_fd", dec(3) nocons label word append ctitle(20-29) noaster
 
 reg  d.clphsg_exp d.eu_lnclg d.euexp_lnclg d.t d.t2  if expcat==4, nocons 
-outreg2 using "$out/differencedreplication", dec(3) nocons label word append ctitle(30-39) noaster
+outreg2 using "$out/tableC1_acemoglu_autor_fd", dec(3) nocons label word append ctitle(30-39) noaster
+
+*───────────────────────────────────────────────────────────────────────────────
+* Table C2: Wild Bootstrap Confidence Intervals
+* Output: $out/tableC2_wild_bootstrap_aa.rtf
+*───────────────────────────────────────────────────────────────────────────────
 
 *Table 9 wild bootstrapped standard errors*
 set seed 46596787
@@ -99,9 +108,9 @@ estadd mat jacklo=jacklo : wildbootstrap
 estadd mat jackhi=jackhi : wildbootstrap
 
 
-esttab wildbootstrap using "$out/wildbootstrap.rtf", ///
+esttab wildbootstrap using "$out/tableC2_wild_bootstrap_aa.rtf", ///
    replace nocons label ///
-   addnotes("Notes: Homoscedastic standard errors in parentheses. The jackknifed wild bootstrap 95% confidence intervals for age-group relative supply, clustered at the potential experience group level, from 4999 replications using Webb weights is in square brackets. A cluster jackknife 95% confidence intervals is in braces.") ///
+   addnotes("Notes: Homoscedastic standard errors in parentheses. The jackknifed wild bootstrap 95% confidence intervals for age-group relative supply, clustered at the potential experience group level, from 4,999 replications using Webb weights is in square brackets. A cluster jackknife 95% confidence intervals is in braces.") ///
    cells(b(fmt(3)) se(par fmt(3)) 	/// if you specify (X & Y) it posts these two statistics to the same cell
 		(lo(f(2) par(`"["') keep(euexp_lnclg)) & /// par option gives the left [ bracket but no right one
 		hi(f(2) par("" `"]"') keep(euexp_lnclg))) ///

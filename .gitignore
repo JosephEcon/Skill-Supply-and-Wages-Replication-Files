@@ -1,0 +1,54 @@
+# Data files
+*.dta
+*.xlsx
+*.csv
+*.RData
+
+# Stata temp files
+*.stswp
+*.swp
+
+# R temp files
+.Rhistory
+
+# Output directories (root-relative to avoid matching Code/Do/Output/)
+/Data/
+/Output/
+/Intermediate Output/
+
+# Output file types (belt and suspenders)
+*.gph
+*.png
+*.jpeg
+*.rtf
+
+# Large archives and replication data
+*.zip
+Code/R scripts/Francis_replication/AGK_files/
+Code/R scripts/Francis_replication/Data/
+Code/R scripts/__MACOSX/
+
+# Backup docx snapshots
+*.backup.docx
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Temp wrapper scripts and logs at root
+*.log
+run_*.do
+check_*.do
+test_*.do
+test_*.R
+francis_*.log
+
+# PDF files
+*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code working directory
+.claude/

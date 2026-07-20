@@ -1,3 +1,12 @@
+/*==============================================================================
+  Script:   clustering.do
+  Purpose:  Compute occupation distributions by major for use in hierarchical
+            clustering. For each SOC level (2, 3, 4-digit) and optionally
+            2009-only data, produces a major-by-occupation share matrix
+            saved as degreeoccupationsoc{digit}.dta.
+  Paper:    Input to R clustering script, which produces Table A1, A2
+==============================================================================*/
+
 *Setting path and clearing*
 local master=$master
 if `master'==1{
@@ -6,14 +15,16 @@ if `master'==1{
 else {
 clear
 global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediateoutput"
-global out "$path/output"
+global rawdata "$path/Data/Raw"
+global intermediatedata "$path/Data/intermediate"
+global cleandata "$path/Data/clean"
+global interout "$path/Intermediate Output"
+global out "$path/Output"
 }
 
-*Loop for different soc code levels*
+* Loop over SOC code granularity levels:
+* 2/3/4 = 2/3/4-digit SOC using full 2009-2019 sample
+* 209/309/409 = same but using 2009 data only (for robustness Table A2)
 foreach digit in 2 3 4 209 309 409{
 
 global digit `digit'
@@ -52,85 +63,35 @@ drop occsoc
 *Weights*
 gegen totalcellsize=sum(perwt), by(degfieldd)
 
-save "$intermediatedata/acsdegoccsoc$digit", replace
+* Save totalcellsize for later merge
+preserve
+keep degfieldd totalcellsize
+duplicates drop degfieldd, force
+tempfile cellsizes
+save `cellsizes', replace
+restore
 
+* Compute weighted occupation shares using collapse+reshape
+collapse (sum) perwt, by(degfieldd soc`digit')
+gegen degreeweight=sum(perwt), by(degfieldd)
+gen meanocc=perwt/degreeweight
+drop perwt degreeweight
 
-*Splitting up dataset for each major and saving*
-levelsof soc`digit', local(occupation)
-levelsof degfieldd, local(degree)
-cd "$intermediatedata"
+reshape wide meanocc, i(degfieldd) j(soc`digit') string
 
-foreach x of local degree{
-	use acsdegoccsoc`digit', clear
-	keep if degfieldd==`x'
-	foreach y of local occupation{
-		global targetocc `y'
-		gen occ`y'=(soc`digit'=="$targetocc")
-		gegen meanocc`y'=mean(occ`y') [aweight=perwt]
-		drop occ`y'
-	}
-	keep if _n==1
-	drop soc`digit' perwt
-	save acsdeg`x'soc`digit', replace
-	}
-
-clear
-foreach x of local degree{
-	append using acsdeg`x'soc`digit'
+* Fill missing shares with 0 (degree has no workers in that occupation)
+foreach v of varlist meanocc* {
+	replace `v'=0 if missing(`v')
 }
 
+* Merge back totalcellsize
+merge 1:1 degfieldd using `cellsizes', nogenerate
+
+* Standardize occupation shares
 foreach v of varlist meanocc*{
 	egen z_`v'=std(`v')
 }
 
 
 save "$intermediatedata/degreeoccupationsoc$digit", replace
-}
-
-*Dimension reduction for four and three digit SOC codes. Otherwise, don't. Also use different linkage methods. Different numbers of principal components. And proportions vs z-scores*
-foreach digit in 2 3 4{
-foreach m in z_m m{
-foreach linkage in averagelinkage wardslinkage{
-foreach no in 5 10{
-use "$intermediatedata/degreeoccupationsoc$digit", clear
-gen no=`no'
-gen digit=`digit'
-if (digit==3|digit==4){
-pca `m'eanocc*
-if no==5{
-	predict pc1 pc2 pc3 pc4 pc5
-}
-else{
-	predict pc1 pc2 pc3 pc4 pc5 pc6 pc7 pc8 pc9 pc10
-}
-cluster `linkage' pc*
-}
-else{
-	cluster `linkage' `m'eanocc*
-}
-
-
-cluster stop, groups (2/50)
-cluster gen cluster20=groups(20)
-cluster gen cluster10=groups(10)
-cluster gen cluster5=groups(5)
-cluster gen cluster30=groups(30)
-cluster gen cluster40=groups(40)
-cluster gen cluster50=groups(50)
-cluster gen cluster60=groups(60)
-cluster gen cluster70=groups(70)
-cluster gen cluster80=groups(80)
-cluster gen cluster90=groups(90)
-cluster gen cluster100=groups(100)
-cluster gen cluster176=groups(176)
-
-
-drop meanocc* z_meanocc* _clus* no
-
-global name `linkage'pc`no'`m'soc`digit'
-
-save "$intermediatedata/$name", replace
-}
-}
-}
 }

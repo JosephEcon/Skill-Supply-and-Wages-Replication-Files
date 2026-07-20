@@ -7,11 +7,11 @@ if `master'==1{
 else {
 clear
 global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediateoutput"
-global out "$path/output"
+global rawdata "$path/Data/Raw"
+global intermediatedata "$path/Data/intermediate"
+global cleandata "$path/Data/clean"
+global interout "$path/Intermediate Output"
+global out "$path/Output"
 }
 	
 	
@@ -20,9 +20,14 @@ use "$rawdata/acsbase.dta", clear
 keep year statefip bpl educ educd sex age race raced hispan hispand school degfield degfieldd degfield2 degfield2d occ occsoc empstat empstatd wkswork2 wkswork1 uhrswork incwage perwt region ind indnaics
 
 
+* Split sample randomly into two halves for ORIV (obviously related IV) estimation
+* Each half is used independently to construct instruments, reducing measurement error bias
 splitsample, gen(sampleid, replace) rseed(894766)
-drop region statefip raced hispand school degfield degfield2
 
+*These are dropped after splitting the sample because I in
+drop statefip raced hispand school degfield degfield2 ind indnaics
+
+* degfieldd = IPUMS "degree field, detailed" (4-digit code identifying undergraduate major)
 drop if degfieldd==.
 
 *Education variables variable*
@@ -43,33 +48,12 @@ drop bpl empstat educ educd
 
  
 
-gen weeksworked=wkswork1 
-
-sum wkswork1 if wkswork2==6 
-
-replace weeksworked=`r(mean)' if wkswork2==6&weeksworked==. 
-
-sum wkswork1 if wkswork2==5 
-
-replace weeksworked=`r(mean)' if wkswork2==5&weeksworked==. 
-
-sum wkswork1 if wkswork2==4 
-
-replace weeksworked=`r(mean)' if wkswork2==4&weeksworked==. 
-
-sum wkswork1 if wkswork2==3 
-
-replace weeksworked=`r(mean)' if wkswork2==3&weeksworked==. 
-
-sum wkswork1 if wkswork2==2 
-
-replace weeksworked=`r(mean)' if wkswork2==2&weeksworked==. 
-
-sum wkswork1 if wkswork2==1 
-
-replace weeksworked=`r(mean)' if wkswork2==1&weeksworked==. 
-
-replace weeksworked=0 if wkswork2==0&weeksworked==. 
+gen weeksworked=wkswork1
+forvalues i = 6(-1)1 {
+	sum wkswork1 if wkswork2==`i'
+	replace weeksworked=`r(mean)' if wkswork2==`i' & weeksworked==.
+}
+replace weeksworked=0 if wkswork2==0 & weeksworked==. 
 
  
 
@@ -77,35 +61,18 @@ gen annualhours=uhrswork*weeksworked
 
 
 *Splitting up by age groups*
-gen age25=(age<=25)
-gen age2529=(25<=age&age<30)
-gen age3034=(30<=age&age<35)
-gen age3539=(35<=age&age<40)
-gen age4044=(40<=age&age<45)
-gen age4549=(45<=age&age<50)
-gen age5054=(50<=age&age<55)
-gen age5559=(55<=age&age<60)
-gen age6064=(60<=age&age<65)
-gen age65=(age>=65)
-
-gen agegroup=.
-replace agegroup=0 if age25==1
-replace agegroup=1 if age2529==1
-replace agegroup=2 if age3034==1
-replace agegroup=3 if age3539==1
-replace agegroup=4 if age4044==1
-replace agegroup=5 if age4549==1
-replace agegroup=6 if age5054==1
-replace agegroup=7 if age5559==1
-replace agegroup=8 if age6064==1
-replace agegroup=9 if age65==1
+* Age groups follow 5-year bins matching the paper's analysis
+* Note: age 25 falls in group 1 (25-29), not group 0 (under 25)
+gen agegroup = cond(age < 25, 0, cond(age < 30, 1, cond(age < 35, 2, ///
+	cond(age < 40, 3, cond(age < 45, 4, cond(age < 50, 5, ///
+	cond(age < 55, 6, cond(age < 60, 7, cond(age < 65, 8, 9)))))))))
 
 
-label define agelabels 0 "Under 26" 1 "26 to 30" 2 "31 to 35" 3 "36 to 40" 4 "41 to 45" 5 "46 to 50" 6 "51 to 55" 7 "56 to 60" 8 "61 to 65" 9 "Over 65"
+label define agelabels 0 "20-24" 1 "25-29" 2 "30-34" 3 "35-39" 4 "40-44" 5 "45-49" 6 "50-54" 7 "55-59" 8 "60-64" 9 "65+"
 label values agegroup agelabels
 
 *Calculating wages*
-
+* Hourly wage = annual income / annual hours; trimmed at 1st and 99th percentiles within age-college-year cells
 
 gen wage=incwage/annualhours
 replace annualhours=0 if incwage==0
@@ -114,12 +81,14 @@ winsor2 wage, cuts(1 99) trim by(agegroup college year) replace
 
 
 
-drop age25 age2529 age3034 age3539 age4044 age4549 age5054 age5559 age6064 age65 weeksworked wkswork1 wkswork2 uhrswork weeksworked incwage
+drop weeksworked wkswork1 wkswork2 uhrswork incwage
 
 compress
 
 
 *Calculating values that depend on non-graduates and don't use cluster definitions*
+* agemeanhours: mean annual hours by age-major-sex in 2009, used to construct the hours-weighted
+* supply instrument (what supply would be if everyone worked their 2009-typical hours)
 gegen agemeanhours=mean(annualhours) if year==2009 [aweight=perwt], by(age degfieldd sex year)
 ereplace agemeanhours=min(agemeanhours), by(age degfieldd sex)
 gegen agemeanhours1=mean(annualhours) if year==2009&sampleid==1 [aweight=perwt], by(age degfieldd sex year sampleid)
@@ -150,7 +119,8 @@ ereplace nationalagemeanhours2=min(nationalagemeanhours2)
 
 
 
-*hours weight
+* hoursweight: person weight * annual hours = total hours contributed by this individual
+* agemeanhoursweight: person weight * predicted hours from 2009 base period
 gen hoursweight=annualhours*perwt
 gen agemeanhoursweight=agemeanhours*perwt
 
@@ -196,6 +166,10 @@ gegen meanclusterhours2=mean(annualhours) if sampleid==2 [aweight=perwt], by(deg
 ereplace meanclusterhours1=min(meanclusterhours1), by(degfieldd year)
 ereplace meanclusterhours2=min(meanclusterhours2), by(degfieldd year)
 
+* Cell-level mean hours used as the denominator for demographic *hoursshare variables only.
+* The supply-path denominator (meanclusterhours above) stays at (degfieldd, year).
+gegen meanclusterhours_age=mean(annualhours) [aweight=perwt], by(degfieldd agegroup year)
+
 
 gegen clusterwage=mean(wage) [aweight=hoursweight], by(degfieldd agegroup year) 
 ereplace clusterwage=min(clusterwage), by(degfieldd agegroup year) 
@@ -230,11 +204,23 @@ gen clustershare=clusterweight/totalweight
 
 
 *Calculating the cell size weights*
+* Regression weight: cell size in 2009 (person-weights) * mean hours for that age-major cell
+* This weights major-age cells proportionally to their size
 gegen weight=sum(perwt) if year==2009, by(year agegroup degfieldd)
 ereplace weight=max(weight), by(agegroup degfieldd)
 gegen agegroupmeanhours=mean(agemeanhours) if year==2009, by(year agegroup degfieldd)
 ereplace agegroupmeanhours=max(agemeanhours), by( agegroup degfieldd)
 replace weight=weight*agegroupmeanhours
+
+* Square-root regression weight (main spec for IV regressions).
+* Pure population weighting (weight itself) gives one large cluster outsize
+* leverage in jackknife inference and amplifies correlated measurement error
+* between the IV and endogenous variable. Square-root weighting handles the
+* heteroskedasticity in cell-level outcomes (SE scales with 1/sqrt(n_cell))
+* while spreading leverage more evenly across clusters. See appendix table
+* on weighting robustness for comparison with weight / unweighted.
+gen sqrt_weight=sqrt(weight)
+label var sqrt_weight "Square-root regression weight (main spec)"
 
 drop agegroupmeanhours
 *Same but for the split samples*
@@ -499,13 +485,12 @@ gen female=(sex==2)
 gegen femaleshare=mean(female) [aweight=perwt] , by(degfieldd agegroup year)
 gen femalehours=female*annualhours
 gegen meanfemalehours=mean(femalehours) [aweight=perwt] , by(degfieldd agegroup year)
-gen femalehoursshare=meanfemalehours/meanclusterhours
+gen femalehoursshare=meanfemalehours/meanclusterhours_age
 
 drop female femalehours meanfemalehours sex
 
 
 *Average age*
-*Gender controls*
 gegen averageage=mean(age) [aweight=hoursweight] , by(degfieldd agegroup year)
 ereplace averageage=min(averageage), by(degfieldd agegroup year)
 
@@ -516,7 +501,7 @@ gen black=(race==2)
 gegen blackshare=mean(black) [aweight=perwt] , by(degfieldd agegroup year)
 gen blackhours=black*annualhours
 gegen meanblackhours=mean(blackhours) [aweight=perwt] , by(degfieldd agegroup year)
-gen blackhoursshare=meanblackhours/meanclusterhours
+gen blackhoursshare=meanblackhours/meanclusterhours_age
 
 drop black blackhours meanblackhours
 
@@ -524,7 +509,7 @@ gen asian=(race==4|race==5|race==6)
 gegen asianshare=mean(asian) [aweight=perwt] , by(degfieldd agegroup year)
 gen asianhours=asian*annualhours
 gegen meanasianhours=mean(asianhours) [aweight=perwt] , by(degfieldd agegroup year)
-gen asianhoursshare=meanasianhours/meanclusterhours
+gen asianhoursshare=meanasianhours/meanclusterhours_age
 
 drop asian asianhours meanasianhours race
 
@@ -533,19 +518,53 @@ gen hispanic=(hispan>0)
 gegen hispanicshare=mean(hispanic) [aweight=perwt] , by(degfieldd agegroup year)
 gen hispanichours=hispanic*annualhours
 gegen meanhispanichours=mean(hispanichours) [aweight=perwt] , by(degfieldd agegroup year)
-gen hispanichoursshare=meanhispanichours/meanclusterhours
+gen hispanichoursshare=meanhispanichours/meanclusterhours_age
 
 drop hispan hispanic hispanichours meanhispanichours
 
 
+*Migrant share* (born outside the US; complement of `national`)
+gen migrant=(national==0)
+gegen migrantshare=mean(migrant) [aweight=perwt] , by(degfieldd agegroup year)
+gen migranthours=migrant*annualhours
+gegen meanmigranthours=mean(migranthours) [aweight=perwt] , by(degfieldd agegroup year)
+gen migranthoursshare=meanmigranthours/meanclusterhours_age
 
-*Collapsing to an age cluster level dataset*
+drop migrant migranthours meanmigranthours
+
+
+*Postgraduate share* (postgrad already exists from line 35 and is used downstream, so do NOT drop it)
+gegen postgradshare=mean(postgrad) [aweight=perwt] , by(degfieldd agegroup year)
+gen postgradhours=postgrad*annualhours
+gegen meanpostgradhours=mean(postgradhours) [aweight=perwt] , by(degfieldd agegroup year)
+gen postgradhoursshare=meanpostgradhours/meanclusterhours_age
+
+drop postgradhours meanpostgradhours
+
+
+*Census region shares*
+* IPUMS region codes: 11-12 = Northeast, 21-22 = Midwest, 31-33 = South, 41-42 = West
+gen northeast=inrange(region,11,12)
+gen midwest=inrange(region,21,22)
+gen south=inrange(region,31,33)
+gen west=inrange(region,41,42)
+
+foreach r in northeast midwest south west {
+    gegen `r'share=mean(`r') [aweight=perwt] , by(degfieldd agegroup year)
+    gen `r'hours=`r'*annualhours
+    gegen mean`r'hours=mean(`r'hours) [aweight=perwt] , by(degfieldd agegroup year)
+    gen `r'hoursshare=mean`r'hours/meanclusterhours_age
+    drop `r' `r'hours mean`r'hours
+}
+
+drop region
+
+
+
+* Collapse to one observation per major-agegroup-year (the unit of analysis)
+* Keep the first observation from each cell (all variables are already at cell level after gegen)
 drop age sampleid annualhours perwt
 drop if degfieldd==.|degfieldd==0
-gen n=_n
-egen rowmin=min(n), by(degfieldd agegroup year)
-drop if n!=rowmin
-drop rowmin n
 gen n=_n
 egen rowmin=min(n), by(degfieldd agegroup year)
 drop if n!=rowmin
@@ -554,7 +573,19 @@ drop rowmin n
 
 *Classifying stem degrees*
 gen stem=0
-replace stem=1 if degfieldd==1103|degfieldd==1104|degfieldd==1105|degfieldd==1106|degfieldd==1301|degfieldd==1302|degfieldd==2001|degfieldd==2100|degfieldd==2101|degfieldd==2102|degfieldd==2105|degfieldd==2106|degfieldd==2107|degfieldd==2400|degfieldd==2401|degfieldd==2402|degfieldd==2403|degfieldd==2404|degfieldd==2405|degfieldd==2406|degfieldd==2407|degfieldd==2408|degfieldd==2409|degfieldd==2410|degfieldd==2411|degfieldd==2412|degfieldd==2413|degfieldd==2414|degfieldd==2415|degfieldd==2416|degfieldd==2417|degfieldd==2418|degfieldd==2419|degfieldd==2499|degfieldd==2500|degfieldd==2501|degfieldd==2502|degfieldd==2503|degfieldd==2504|degfieldd==2599|degfieldd==3600|degfieldd==3601|degfieldd==3602|degfieldd==3603|degfieldd==3604|degfieldd==3605|degfieldd==3606|degfieldd==3607|degfieldd==3608|degfieldd==3609|degfieldd==3611|degfieldd==3699|degfieldd==3600|degfieldd==3601|degfieldd==3602|degfieldd==3801|degfieldd==4002|degfieldd==4003|degfieldd==4005|degfieldd==4006|degfieldd==5000|degfieldd==5001|degfieldd==5002|degfieldd==5003|degfieldd==5004|degfieldd==5005|degfieldd==5006|degfieldd==5007|degfieldd==5008|degfieldd==5098|degfieldd==5102|degfieldd==5901|degfieldd==6106|degfieldd==6108|degfieldd==6202|degfieldd==6212
+replace stem=1 if ///
+	inlist(degfieldd, 1103, 1104, 1105, 1106, 1301, 1302) | ///       /* Agriculture & Environment */
+	inlist(degfieldd, 2001, 2100, 2101, 2102, 2105, 2106, 2107) | /// /* Communications & CS */
+	inlist(degfieldd, 2400, 2401, 2402, 2403, 2404, 2405, 2406) | /// /* Engineering */
+	inlist(degfieldd, 2407, 2408, 2409, 2410, 2411, 2412, 2413) | /// /* Engineering cont. */
+	inlist(degfieldd, 2414, 2415, 2416, 2417, 2418, 2419, 2499) | /// /* Engineering cont. */
+	inlist(degfieldd, 2500, 2501, 2502, 2503, 2504, 2599) | ///       /* Engineering Tech */
+	inlist(degfieldd, 3600, 3601, 3602, 3603, 3604, 3605, 3606) | /// /* Biology */
+	inlist(degfieldd, 3607, 3608, 3609, 3611, 3699, 3801) | ///       /* Biology & Math */
+	inlist(degfieldd, 4002, 4003, 4005, 4006) | ///                    /* Physical Sciences */
+	inlist(degfieldd, 5000, 5001, 5002, 5003, 5004, 5005, 5006) | /// /* Social Sciences (quant) */
+	inlist(degfieldd, 5007, 5008, 5098, 5102) | ///                    /* Social Sciences cont. */
+	inlist(degfieldd, 5901, 6106, 6108, 6202, 6212)                   /* Other STEM */
 
 
 
@@ -562,10 +593,21 @@ replace stem=1 if degfieldd==1103|degfieldd==1104|degfieldd==1105|degfieldd==110
 
 save "$intermediatedata/nationalclustersprep", replace
 
-*Aggregating to higher clusters*
+* Aggregate major-level variables up to cluster-level variables for each clustering specification
+* Each clustering file (e.g., weighted_average_linkage_jsd_soc4) assigns majors to cluster IDs
 foreach sample in weighted_average_linkage_jsd_soc4 weighted_average_linkage_jsd_soc2 weighted_average_linkage_jsd_soc3 weighted_average_linkage_manhattan_soc2 weighted_average_linkage_manhattan_soc3 weighted_average_linkage_manhattan_soc4 weighted_ward_linkage_jsd_soc4 weighted_ward_linkage_jsd_soc3 weighted_ward_linkage_jsd_soc2 weighted_average_linkage_jsd_soc409 weighted_average_linkage_jsd_soc209 weighted_average_linkage_jsd_soc309{
 
 global sample `sample'	
+
+*Destringing degfieldd labels*
+use "$intermediatedata/$sample", clear
+
+destring degfieldd, replace
+
+save "$intermediatedata/$sample", replace
+
+*Loading data
+
 use "$intermediatedata/nationalclustersprep", clear
 
 
@@ -581,7 +623,11 @@ save "$intermediatedata/data$sample", replace
 use "$intermediatedata/data$sample", clear
 
 
-*Calculating the cluster share and instrument for higher order clusters*
+* For each cluster level k (20, 25, ..., 175) and sample suffix (e=full, e1=half1, e2=half2):
+* - cluster{k}hoursshare: sum of major hours shares within each cluster (total supply by cluster)
+* - nationalhourscluster{k}share: same but nationals-only (the IV)
+* - cluster{k}hoursshareminusown: cluster supply excluding own major (placebo test variable)
+* - Also compute shares excluding professional degrees (nopro), postgrads (ug), and double majors (double)
 foreach y in e e1 e2{
 foreach x in 20 25 30 40 50 60 70 80 90 100 101 171 175{
 	capture: gegen cluster`x'hoursshar`y'=sum(clusterhoursshar`y'), by(cluster`x' agegroup year)
@@ -621,32 +667,32 @@ foreach x in 20 25 30 40 50 60 70 80 90 100 101 171 175{
 
 }
 }
+* Strip the 'e' suffix from full-sample variables (e1/e2 kept for split-sample ORIV)
 rename *hoursshareminusowne* *hoursshareminusown*
-gen clusterage=cluster175*10+agegroup
-label var clusterage "Unique identifier"
+* Panel identifier: encodes both cluster assignment and age group into a single numeric ID
+capture: gen clusterage=cluster175*10+agegroup
+capture: label var clusterage "Unique identifier"
 
 
 
 *Initial wages*
-
-
+* Initial wages: mean cluster wage in 2009, standardised. Used to split clusters into
+* above/below mean wage for heterogeneity analysis (Table 3)
 foreach x in 25 30 175{
-gegen initialwage`x'=mean(clusterwage) [aweight=weight] if year==2009, by(cluster`x' year)
-ereplace initialwage`x'=min(initialwage`x'), by(cluster`x')
+capture: gegen initialwage`x'=mean(clusterwage) [aweight=weight] if year==2009, by(cluster`x' year)
+capture: ereplace initialwage`x'=min(initialwage`x'), by(cluster`x')
 
-sum initialwage`x' [aweight=weight]
-gen stdinitialwage`x'=(initialwage`x'-`r(mean)')/`r(sd)'
-
-
+capture: sum initialwage`x' [aweight=weight]
+capture: gen stdinitialwage`x'=(initialwage`x'-`r(mean)')/`r(sd)'
 }
 
-*Calculating initial cluster sizes and percentage error for measurement error models*
+* Initial cluster sizes (2009): used in ORIV measurement error models to interact with
+* instruments, accounting for the structure of sampling noise (larger clusters have less noise)
 foreach x in 25 30 175{
-
-gegen initialcluster`x'share=min(cluster`x'hoursshare) if year==2009, by(cluster`x' year)
-ereplace initialcluster`x'share=min(initialcluster`x'share), by(cluster`x')
+capture: gegen initialcluster`x'share=min(cluster`x'hoursshare) if year==2009, by(cluster`x' year)
+capture: ereplace initialcluster`x'share=min(initialcluster`x'share), by(cluster`x')
 *This comes from the standard deviation of a binomial distribution divided by its mean*
-gen lninitialcluster`x'share=ln(initialcluster`x'share)
+capture: gen lninitialcluster`x'share=ln(initialcluster`x'share)
 }
 
 *Saving data*sample

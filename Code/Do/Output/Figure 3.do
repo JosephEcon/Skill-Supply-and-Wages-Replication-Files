@@ -1,25 +1,15 @@
-*Setting path and clearing*
-local master=$master
-if `master'==1{
-	clear
+/*==============================================================================
+  Script:   Figure 3.do
+  Paper:    Figure 3: Elasticity with Varying Numbers of Clusters (OLS and IV)
+  Output:   $out/figure 3.png
+==============================================================================*/
+
+* Shared setup: paths, globals, helper programs
+local master = $master
+if `master' != 1 {
+    global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages"
 }
-else {
-clear
-global path "C:/Users/josep/OneDrive/Documents/PhD/Skills and Wages" // Set the path to the main replication folder
-global rawdata "$path/data/raw"
-global intermediatedata "$path/data/intermediate"
-global cleandata "$path/data/clean"
-global interout "$path/intermediate output"
-global out "$path/output"
-}
-
-
-
-*Controls*
-global controls blackshare hispanicshare asianshare femaleshare averageage
-global dcontrols d.blackshare d.hispanicshare d.asianshare d.femaleshare d.averageage
-global hdfecontrols hdfeblackshare hdfehispanicshare hdfeasianshare hdfefemaleshare hdfeaverageage
-global hdfedcontrols hdfedblackshare hdfedhispanicshare hdfedasianshare hdfedfemaleshare hdfedaverageage
+do "$path/Code/Do/setup_globals.do"
 
 
 use "$cleandata/analysisweighted_average_linkage_jsd_soc4", clear
@@ -34,8 +24,8 @@ rename lncluster25hoursshareminusown* lncluster25shareminusown*
 
 drop *double* *nopro* 
 
-foreach x of varlist lnclusterwage* lncluster*share lnnational*share blackshare hispanicshare asianshare femaleshare averageage{
-	quietly: reghdfe `x' [pweight=weight], absorb(c.year#i.cluster175 i.cluster175#i.agegroup) resid
+foreach x of varlist lnclusterwage* lncluster*share lnnational*share blackshare hispanicshare asianshare femaleshare averageage migrantshare postgradshare northeastshare midwestshare southshare{
+	quietly: reghdfe `x' [pweight=sqrt_weight], absorb(c.year#i.cluster175 i.cluster175#i.agegroup) resid
 	predict hdfe`x', resid
 }
 
@@ -43,7 +33,7 @@ foreach x of varlist lnclusterwage* lncluster*share lnnational*share blackshare 
 *Coefplot OLS*
 foreach x in 20 30 40 50 60 70 80 90 100 175{
 label var lncluster`x'hoursshare `x'
-jackknife, mse cluster(cluster`x'): reghdfe lnclusterwage lncluster`x'hoursshare $controls  [pweight=weight], absorb(i.cluster175#i.agegroup i.year c.year#i.cluster175) cluster(cluster`x')
+jackknife, mse cluster(cluster`x'): reghdfe lnclusterwage lncluster`x'hoursshare $controls  [pweight=sqrt_weight], absorb(i.cluster175#i.agegroup i.year c.year#i.cluster175) cluster(cluster`x')
 mat b`x'=_b[lncluster`x'hoursshare] //subsets the r(CI) matrx to only have the lower CI
 mat ci`x'=[0\0]
 mat ci`x'[1,1]=r(table)[5,1]  // lower ci
@@ -63,7 +53,7 @@ graph save "$interout/varyingclusterscoefplotols", replace
 *Coefplot IV*
 foreach x in 20 30 40 50 60 70 80 90 100 175{
 label var hdfelncluster`x'hoursshare `x'
-jackknife, mse cluster(cluster`x'): ivregress 2sls hdfelnclusterwage (hdfelncluster`x'hoursshare=hdfelnnationalcluster`x'share) $hdfecontrols i.year  [pweight=weight], cluster(cluster`x')
+jackknife, mse cluster(cluster`x'): ivregress 2sls hdfelnclusterwage (hdfelncluster`x'hoursshare=hdfelnnationalcluster`x'share) $hdfecontrols i.year  [pweight=sqrt_weight], cluster(cluster`x')
 mat b`x'=_b[hdfelncluster`x'hoursshare] //subsets the r(CI) matrx to only have the lower CI
 mat ci`x'=[0\0]
 mat ci`x'[1,1]=r(table)[5,1]  // lower ci
@@ -83,4 +73,4 @@ graph save "$interout/varyingclusterscoefplotiv", replace
 
 *Combining graphs*
 graph combine "$interout/varyingclusterscoefplotols" "$interout/varyingclusterscoefplotiv", cols(2) ycommon
-graph export "$out/figure 3.jpg", replace
+graph export "$out/figure 3.png", replace
