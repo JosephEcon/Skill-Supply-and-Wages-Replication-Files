@@ -1,7 +1,7 @@
 /*==============================================================================
-  Script:   Table A6 AGK extended.do
-  Paper:    Table A6 (Appendix robustness)
-  Purpose:  Rebuild Table A6 by extending AGK's spliced 1914-2017 series
+  Script:   Table A7 AGK extended.do
+  Paper:    Table A7 (Appendix robustness)
+  Purpose:  Rebuild Table A7 by extending AGK's spliced 1914-2017 series
             through 2019 with Francis (2026) 2018-2019 observations, using the
             2017 AGK-vs-Francis offset (wprem +0.0064661, relsup +0.0002701).
 
@@ -10,7 +10,7 @@
             using identical Stata code so the 1963-2017 overlap with body
             Table 5 is exact.
 
-  Outputs:  $out/tableA6_agk_extended_1963_2019.rtf
+  Outputs:  $out/tableA7_agk_extended_1963_2019.rtf
 
   Notes:    Panel B critical values are MacKinnon (2010) Case IV (constant +
             trend), k=2 (one cointegrating regressor + dependent variable),
@@ -175,7 +175,7 @@ foreach s in full pre post {
     scalar mk_`s'_10 = r(cv)
 }
 
-display _n "MacKinnon (2010) Table 3 critical values for Table A6:"
+display _n "MacKinnon (2010) Table 3 critical values for Table A7:"
 display "  Panel A 5%: full=" %6.3f mka_5_full " pre=" %6.3f mka_5_pre " post=" %6.3f mka_5_post
 display "  Panel B 5%: full=" %6.3f mk_full_5  " pre=" %6.3f mk_pre_5  " post=" %6.3f mk_post_5
 display "  Panel B 10%: full=" %6.3f mk_full_10 " pre=" %6.3f mk_pre_10 " post=" %6.3f mk_post_10
@@ -266,11 +266,11 @@ scalar ta10_shin_cv_1 = 0.184
 *───────────────────────────────────────────────────────────────────────────────
 
 tempname fh
-file open `fh' using "$out/tableA6_agk_extended_1963_2019.rtf", write replace
+file open `fh' using "$out/tableA7_agk_extended_1963_2019.rtf", write replace
 file write `fh' "{\rtf1\ansi\deff0 {\fonttbl\f0\fnil Times New Roman;}" _n
 file write `fh' "{\info {\author .}{\company .}{\title .}}" _n
 file write `fh' "\deflang1033\plain\fs24" _n
-file write `fh' "{\pard\keepn\ql Table A6: Unit Root and Cointegration Tests (AGK extended through 2019)\par}" _n
+file write `fh' "{\pard\keepn\ql Table A7: Unit Root and Cointegration Tests (AGK extended through 2019)\par}" _n
 
 * Column widths
 local c1 2508
@@ -458,6 +458,6 @@ file write `fh' "{\pard \par}" _n
 file write `fh' "}" _n
 file close `fh'
 
-display _n "Wrote: $out/tableA6_agk_extended_1963_2019.rtf"
+display _n "Wrote: $out/tableA7_agk_extended_1963_2019.rtf"
 
-* End of Table A6 AGK extended.do
+* End of Table A7 AGK extended.do

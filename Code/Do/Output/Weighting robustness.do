@@ -1,6 +1,6 @@
 /*==============================================================================
   Script:   Weighting robustness.do
-  Paper:    Table A8 (Robustness to Regression Weighting)
+  Paper:    Table A6 (Robustness to Regression Weighting)
   Output:   $out/table_weighting_robustness.rtf
 
   Re-estimates the paper's IV specifications (Table 2 IV-FE / IV-FD) and ORIV
@@ -178,7 +178,7 @@ list spec weighting b se fjk, noobs sepby(block worder)
 tempname rtf
 file open `rtf' using "$out/table_weighting_robustness.rtf", write replace
 file write `rtf' "{\rtf1\ansi\deff0 {\fonttbl\f0\fnil Times New Roman;}\plain\fs24" _n
-file write `rtf' "{\pard\keepn\qc {\b Table A8:} Robustness to Regression Weighting\par}" _n
+file write `rtf' "{\pard\keepn\qc {\b Table A6:} Robustness to Regression Weighting\par}" _n
 file write `rtf' "\trowd\trgaph108\trleft0\cellx2200\cellx4400\cellx6000\cellx7600\cellx9200" _n
 file write `rtf' "\pard\intbl\ql {\b Spec}\cell \pard\intbl\ql {\b Weighting}\cell \pard\intbl\qc {\b Coefficient}\cell \pard\intbl\qc {\b SE}\cell \pard\intbl\qc {\b First-stage F}\cell \row" _n
 forvalues i = 1/`=_N' {

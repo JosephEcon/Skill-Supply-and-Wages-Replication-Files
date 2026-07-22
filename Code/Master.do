@@ -92,9 +92,9 @@ global rpath "C:/Program Files/R/R-4.5.1/bin/x64/Rterm.exe" // Path to Rterm.exe
 * intermediates — see readme.txt for data access and disk requirements).
 local cluster=0	// Clustering stage: major-occupation shares + R clustering (Tables B1-B3, Figures 2, B1)
 local clean=0	// Data cleaning stage: build analysis panels from the raw ACS extract
-local tables=1 	// Main tables (Tables 1-6, A7)
+local tables=1 	// Main tables (Tables 1-6, A8)
 local figures=1 // Main figures (Figures 1, 3, 4, 5)
-local apptab=1 	// Appendix tables (Tables A1-A6, A8, B4, C1, C2)
+local apptab=1 	// Appendix tables (Tables A1-A7, A9-A11, B4, C1, C2)
 local appfig=1 	// Appendix figures (Figures B2-B5; A1 is produced with the appendix tables)
 
 /*===============================================================================================
@@ -107,6 +107,7 @@ local appfig=1 	// Appendix figures (Figures B2-B5; A1 is produced with the appe
 		global master 1
 		do "$doclean/clustering.do"
 		do "$doclean/cleaning.do"
+		do "$doclean/mw_union_series.do"			// National effective min. wage + union density series (Tables A9-A11)
 
 	}
 	
@@ -130,7 +131,7 @@ if `cluster'==1 {
 		do "$dooutput/Main Regressions.do"			// Tables 1, 2, 3
 		do "$dooutput/RBET replication.do"			// Tables 5, 6; Figures D1-D3
 		do "$dooutput/Obviously Related IV.do"		// Tables 4, A2, A3
-		do "$dooutput/Francis KM robustness.do"		// Table A7 (+ 2023-cutoff robustness, not in paper)
+		do "$dooutput/Francis KM robustness.do"		// Table A8 (+ 2023-cutoff robustness, not in paper)
 	}
 
 ** Generate the main figures
@@ -149,8 +150,9 @@ if `cluster'==1 {
 	    global master 1
 		do "$dooutput/Appendix Regressions.do"	// Tables A1, A4, A5, B4; Figure A1
 		do "$dooutput/Acemoglu Autor Replication.do"	// Tables C1, C2
-		do "$dooutput/Table A6 AGK extended.do"	// Table A6 (AGK series extended through 2019)
-		do "$dooutput/Weighting robustness.do"	// Table A8
+		do "$dooutput/Weighting robustness.do"	// Table A6
+		do "$dooutput/Table A7 AGK extended.do"	// Table A7 (AGK series extended through 2019)
+		do "$dooutput/KM controls robustness.do"	// Tables A9-A11 (min. wage + union density controls + cointegration tests)
 	}
 
 ** Generate the appendix figures

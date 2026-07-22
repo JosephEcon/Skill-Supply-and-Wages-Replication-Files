@@ -38,9 +38,9 @@ install  default 1  Install Stata packages (set to 0 after the first run)
 cluster  default 0  Major-occupation shares + hierarchical/task clustering in R
                     (produces the cluster files, Tables B1-B3, Figures 2, B1)
 clean    default 0  Build the analysis panels from the raw ACS extract
-tables   default 1  Main tables   (Tables 1-6, A7)
+tables   default 1  Main tables   (Tables 1-6, A8)
 figures  default 1  Main figures  (Figures 1, 3, 4, 5)
-apptab   default 1  Appendix tables  (Tables A1-A6, A8, B4, C1, C2; Figure A1)
+apptab   default 1  Appendix tables  (Tables A1-A7, A9-A11, B4, C1, C2; Figure A1)
 appfig   default 1  Appendix figures (Figures B2-B5)
 
 Runtime and disk: the default outputs-only run re-estimates every regression
@@ -71,12 +71,35 @@ DATA ACCESS (not included in the repository; place in Data/Raw)
    archive (https://www.dropbox.com/scl/fi/j879xx8mraurjis6wiy0v/tab-08.zip?dl=0).
 5. km-cg-rsup-6317.dta - AGK relative wage/supply series (same archive family).
 6. Francis/km-cg-rsup-6318.csv and Francis/km-cg-rsup-6323.csv - independently
-   constructed CPS series used for Table A7. These are produced by the
+   constructed CPS series used for Table A8. These are produced by the
    self-contained sub-pipeline in "Code/R scripts/Francis_replication"
    (see its own README and master.R).
 7. onet/db_23_0_text/ - the O*NET 23.0 database in text format
    (https://www.onetcenter.org/database.html), used by onet_activity_prep.R
    for the task-based clustering robustness (Figure B5).
+8. MinWage/ - effective minimum wage inputs for Tables A9-A11 (built into
+   Data/intermediate/mw_union_national.dta by Code/Do/Cleaning/
+   mw_union_series.do):
+     - state_year_combo.dta, vogel_mw_series_1963_2016.dta (= his
+       mw_series.dta) and cps-to-census.dta from the replication package of
+       Vogel (2025, QJE), "The Race Between Education, Technology, and the
+       Minimum Wage" (doi:10.1093/qje/qjaf014; replication data on Harvard
+       Dataverse).
+     - state_pop_weights.dta: fixed average ASEC state population shares,
+       derived one-off from the Vogel package's cps_00095.dta by replicating
+       his Ext_CM_national.do lines 332-345.
+     - FRED/STTMINWG??.csv (46 state minimum wage series; AL, LA, MS, SC, TN
+       have no state minimum) and FRED/GDPDEF.csv, pulled 2026-07-22 from
+       https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES>. These
+       extend Vogel's national real effective minimum wage series (validated
+       to <0.01 log points against his 1963-2016 series) through 2023.
+9. Farber2021/ - union density series for Tables A9-A11, from the replication
+   package of Farber, Herbst, Kuziemko and Naidu (2021, QJE), "Unions and
+   Inequality over the Twentieth Century" (Harvard Dataverse
+   doi:10.7910/DVN/QTDUQ0, which links to the full _ProjectRep2.zip):
+   ts_union_ineq.dta (verbatim from the package) and the tidy extract
+   union_density_farber2021.dta (their funionAverage headline density plus the
+   Gallup and BLS/CPS components). See Farber2021/provenance.txt.
 
 The ACS data are too large to post and the remaining files are not ours to
 redistribute, which is why Data/ ships empty.
@@ -94,9 +117,12 @@ Table A1                Code/Do/Output/Appendix Regressions.do    tableA1_varyin
 Tables A2, A3           Code/Do/Output/Obviously Related IV.do    tableA2_oriv_liml.rtf, tableA3_oriv_just_identified.rtf
 Table A4                Code/Do/Output/Appendix Regressions.do    tableA4_wild_bootstrap.rtf
 Table A5                Code/Do/Output/Appendix Regressions.do    tableA5_no_controls.rtf
-Table A6                Code/Do/Output/Table A6 AGK extended.do   tableA6_agk_extended_1963_2019.rtf
-Table A7                Code/Do/Output/Francis KM robustness.do   tableA7_francis_2019_*.rtf
-Table A8                Code/Do/Output/Weighting robustness.do    table_weighting_robustness.rtf
+Table A6                Code/Do/Output/Weighting robustness.do    table_weighting_robustness.rtf
+Table A7                Code/Do/Output/Table A7 AGK extended.do   tableA7_agk_extended_1963_2019.rtf
+Table A8                Code/Do/Output/Francis KM robustness.do   tableA8_francis_2019_*.rtf
+Table A9                Code/Do/Output/KM controls robustness.do  tableA9_km_controls_agk2017_{levels,fd}.rtf
+Table A10               Code/Do/Output/KM controls robustness.do  tableA10_km_controls_francis2019_{levels,fd}.rtf
+Table A11               Code/Do/Output/KM controls robustness.do  tableA11_km_controls_diagnostics.rtf
 Figure A1               Code/Do/Output/Appendix Regressions.do    coefplotage.jpg
 Tables B1, B2, B3       Code/R scripts/weighted clustering.R  clusters_25_jsdsoc4.csv, clusters_25_jsdsoc4_ward.csv, clusters_101_jsdsoc4_09.csv
 Table B4                Code/Do/Output/Appendix Regressions.do    tableB4_clusters_2009.rtf
@@ -116,6 +142,10 @@ PIPELINE (full rebuild order, handled automatically by Master.do)
    cluster_visualizations.R              - dendrogram + validation figures
    onet_activity_prep.R, task clustering.R - task-based (O*NET IWA) clustering
 3. cleaning.do                           - ACS cleaning; builds analysis panels
+   mw_union_series.do                    - national effective minimum wage +
+                                           union density series (Tables A9-A11;
+                                           also auto-built on demand by
+                                           "KM controls robustness.do")
 4. Output do-files                       - all tables and figures (see map)
 
 LICENSE

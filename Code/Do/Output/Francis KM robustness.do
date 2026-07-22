@@ -1,7 +1,7 @@
 /*==============================================================================
   Script:   Francis KM robustness.do
-  Paper:    Table A7 (+ 2023-cutoff robustness, not in paper)
-            The paper's Table A6/A7 notes describe the data simply as "the
+  Paper:    Table A8 (+ 2023-cutoff robustness, not in paper)
+            The paper's Table A7/A8 notes describe the data simply as "the
             Autor et al (2020) series extended through to 2019"; the underlying
             series here are Joseph Francis's independent CPS reconstruction
             (Francis 2026, Econ Journal Watch), built by the self-contained
@@ -9,7 +9,7 @@
             against the AGK baseline in Section 0 below.
   Purpose:  Rerun KM time-series specs on Francis data with 2019 and 2023 cutoffs
   Outputs:  francis_diagnostics_{2019,2023}.rtf
-            tableA7_francis_{2019,2023}_levels.rtf, _fd.rtf, _fd2.rtf
+            tableA8_francis_{2019,2023}_levels.rtf, _fd.rtf, _fd2.rtf
             irfcombine_francis_{2019,2023}.png
 ==============================================================================*/
 
@@ -308,23 +308,23 @@ capture drop u1 u2 u3
 
 * ─── Levels regressions ───
 reg wprem2 relsup time if year>=1963
-outreg2 using "$out/tableA7_francis_`cutoff'_levels", replace ///
+outreg2 using "$out/tableA8_francis_`cutoff'_levels", replace ///
 	addtext(Sample, 1963-`cutoff', Time trend, Linear) nocons keep(relsup) word dec(3) label
 
 reg wprem2 relsup time t92 if year>=1963
-outreg2 using "$out/tableA7_francis_`cutoff'_levels", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_levels", append ///
 	addtext(Sample, 1963-`cutoff', Time trend, Linear spline) nocons keep(relsup) word dec(3) label
 
 reg wprem2 relsup time tsq if year>=1963
-outreg2 using "$out/tableA7_francis_`cutoff'_levels", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_levels", append ///
 	addtext(Sample, 1963-`cutoff', Time trend, Quadratic) nocons keep(relsup) word dec(3) label
 
 reg wprem2 relsup time if year>=1963&year<1993
-outreg2 using "$out/tableA7_francis_`cutoff'_levels", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_levels", append ///
 	addtext(Sample, 1963-1992, Time trend, Linear) nocons keep(relsup) word dec(3) label
 
 reg wprem2 relsup time if year>=1993
-outreg2 using "$out/tableA7_francis_`cutoff'_levels", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_levels", append ///
 	addtext(Sample, 1993-`cutoff', Time trend, Linear) nocons keep(relsup) word dec(3) label
 
 
@@ -335,23 +335,23 @@ label var dwprem2 "Ln(Relative wage)"
 label var drelsup "Ln(Relative supply)"
 
 reg dwprem2 drelsup d.time if year>=1963, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd", replace ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd", replace ///
 	addtext(Sample, 1963-`cutoff', Time trend, Linear) nocons keep(drelsup) word dec(3) label
 
 reg dwprem2 drelsup d.time d.t92 if year>=1963, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd", append ///
 	addtext(Sample, 1963-`cutoff', Time trend, Linear spline) nocons keep(drelsup) word dec(3) label
 
 reg dwprem2 drelsup d.time d.tsq if year>=1963, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd", append ///
 	addtext(Sample, 1963-`cutoff', Time trend, Quadratic) nocons keep(drelsup) word dec(3) label
 
 reg dwprem2 drelsup d.time if year>=1963&year<1993, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd", append ///
 	addtext(Sample, 1963-1992, Time trend, Linear) nocons keep(drelsup) word dec(3) label
 
 reg dwprem2 drelsup d.time if year>=1993, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd", append ///
 	addtext(Sample, 1993-`cutoff', Time trend, Linear) nocons keep(drelsup) word dec(3) label
 
 
@@ -367,11 +367,11 @@ replace dwprem2=d.wprem2
 replace drelsup=d.relsup
 
 reg dwprem2 drelsup d.time if year>=1963, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd2", replace ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd2", replace ///
 	addtext(Sample, 1963-`cutoff', Time trend, Linear) nocons keep(drelsup) word dec(3) label
 
 reg dwprem2 drelsup d.time d.tsq if year>=1963, r nocons
-outreg2 using "$out/tableA7_francis_`cutoff'_fd2", append ///
+outreg2 using "$out/tableA8_francis_`cutoff'_fd2", append ///
 	addtext(Sample, 1963-`cutoff', Time trend, Quadratic) nocons keep(drelsup) word dec(3) label
 
 restore
