@@ -152,7 +152,7 @@ if `cluster'==1 {
 		do "$dooutput/Acemoglu Autor Replication.do"	// Tables C1, C2
 		do "$dooutput/Weighting robustness.do"	// Table A6
 		do "$dooutput/Table A7 AGK extended.do"	// Table A7 (AGK series extended through 2019)
-		do "$dooutput/KM controls robustness.do"	// Tables A9-A11 (min. wage + union density controls + cointegration tests)
+		do "$dooutput/KM controls robustness.do"	// Tables A9-A11 + Figures D4-D5 (min. wage + union density controls)
 	}
 
 ** Generate the appendix figures

@@ -123,6 +123,8 @@ Table A8                Code/Do/Output/Francis KM robustness.do   tableA8_franci
 Table A9                Code/Do/Output/KM controls robustness.do  tableA9_km_controls_agk2017_{levels,fd}.rtf
 Table A10               Code/Do/Output/KM controls robustness.do  tableA10_km_controls_francis2019_{levels,fd}.rtf
 Table A11               Code/Do/Output/KM controls robustness.do  tableA11_km_controls_diagnostics.rtf
+Figure D4               Code/Do/Output/KM controls robustness.do  irfrelsupinstitutions.png
+Figure D5               Code/Do/Output/KM controls robustness.do  irfinstitutions.png
 Figure A1               Code/Do/Output/Appendix Regressions.do    coefplotage.jpg
 Tables B1, B2, B3       Code/R scripts/weighted clustering.R  clusters_25_jsdsoc4.csv, clusters_25_jsdsoc4_ward.csv, clusters_101_jsdsoc4_09.csv
 Table B4                Code/Do/Output/Appendix Regressions.do    tableB4_clusters_2009.rtf
